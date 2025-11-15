@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>競馬レース結果統計分析システム</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#218085">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="競馬分析">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🏇 競馬レース結果統計分析システム</h1>
+            <p class="subtitle">高度な統計分析とビジュアル化で競馬データを深く理解</p>
+        </header>
+
+        <main class="main">
+            <!-- 保存済みデータ管理セクション -->
+            <section class="saved-data-section">
+                <div class="card">
+                    <div class="card__header">
+                        <h2>保存済みデータ</h2>
+                        <div class="saved-data-controls">
+                            <button id="importDataButton" class="btn btn--secondary btn--sm">
+                                📥 データインポート
+                            </button>
+                            <div id="dataActionButtons" style="display: none;">
+                                <button id="analyzeAllButton" class="btn btn--primary btn--sm">
+                                    📈 全データ分析
+                                </button>
+                                <button id="exportDataButton" class="btn btn--secondary btn--sm">
+                                    📤 データエクスポート
+                                </button>
+                                <button id="clearAllButton" class="btn btn--outline btn--sm">
+                                    🗑️ 全削除
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card__body">
+                        <div id="savedDataList" class="saved-data-list">
+                            <!-- 保存済みデータがここに表示されます -->
+                        </div>
+                        <input type="file" id="importFileInput" accept=".json" style="display: none;">
+                    </div>
+                </div>
+            </section>
+
+            <!-- データ入力セクション -->
+            <section class="input-section">
+                <div class="card">
+                    <div class="card__header">
+                        <h2>新しいデータを追加</h2>
+                        <p class="text-secondary">競馬データをペーストして分析・保存</p>
+                    </div>
+                    <div class="card__body">
+                        <div class="input-meta-grid">
+                            <div class="form-group">
+                                <label for="racetrackSelect" class="form-label">競馬場</label>
+                                <select id="racetrackSelect" class="form-control">
+                                    <option value="東京">東京</option>
+                                    <option value="京都">京都</option>
+                                    <option value="中山">中山</option>
+                                    <option value="阪神">阪神</option>
+                                    <option value="中京">中京</option>
+                                    <option value="新潟">新潟</option>
+                                    <option value="札幌">札幌</option>
+                                    <option value="函館">函館</option>
+                                    <option value="福島">福島</option>
+                                    <option value="小倉">小倉</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="raceDate" class="form-label">開催日</label>
+                                <input type="date" id="raceDate" class="form-control">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="raceData" class="form-label">レースデータ（12レース分）</label>
+                            <textarea id="raceData" class="form-control" rows="8"
+                                placeholder="レースデータをここにペーストしてください...&#10;&#10;形式例:&#10;R	レース名	条件	馬場・天候	馬番	1着(人気)	馬番	2着(人気)	馬番	3着(人気)&#10;1R	２歳未勝利	ダ1400	良・曇	7	エコロシード②	10	ヘリテージブルーム③	8	カセノアステリア⑥"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="horseCountData" class="form-label">頭立て数データ（オプション）</label>
+                            <textarea id="horseCountData" class="form-control" rows="6"
+                                placeholder="頭立て数データをここにペーストしてください（より正確な確率計算のため）&#10;&#10;対応形式:&#10;・シンプル: 1R 16頭&#10;・詳細: 競馬場情報付きの完全データ&#10;・JRA公式サイトからのコピペにも対応"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="payoutData" class="form-label">払い戻しデータ（オプション）</label>
+                            <textarea id="payoutData" class="form-control" rows="12"
+                                placeholder="払い戻しデータをここにペーストしてください（12レース分対応）&#10;&#10;対応形式:&#10;1R&#10;単勝&#10;11&#10;710円&#10;3人気&#10;複勝&#10;11&#10;14&#10;6&#10;160円&#10;110円&#10;160円&#10;3人気&#10;1人気&#10;2人気&#10;...&#10;&#10;2R&#10;単勝&#10;9&#10;320円&#10;1人気&#10;...&#10;&#10;※レース番号（1R、2R等）で区切って入力してください">1R
+
+2R
+
+3R
+
+4R
+
+5R
+
+6R
+
+7R
+
+8R
+
+9R
+
+10R
+
+11R
+
+12R
+
+</textarea>
+                        </div>
+                        <div class="button-group">
+                            <button id="parseButton" class="btn btn--primary">
+                                📊 データを解析
+                            </button>
+                            <button id="saveButton" class="btn btn--secondary">
+                                💾 データを保存
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 高度フィルターセクション -->
+            <section class="advanced-filter-section">
+                <div class="card">
+                    <div class="card__header">
+                        <h3>🔍 高度フィルター機能</h3>
+                        <p class="text-secondary">条件を組み合わせて詳細な統計分析</p>
+                    </div>
+                    <div class="card__body">
+                        <div class="advanced-filter-grid">
+                            <div class="form-group">
+                                <label for="racetrackFilter" class="form-label">競馬場</label>
+                                <select id="racetrackFilter" class="form-control">
+                                    <option value="">すべて</option>
+                                    <option value="東京">東京</option>
+                                    <option value="京都">京都</option>
+                                    <option value="中山">中山</option>
+                                    <option value="阪神">阪神</option>
+                                    <option value="中京">中京</option>
+                                    <option value="新潟">新潟</option>
+                                    <option value="札幌">札幌</option>
+                                    <option value="函館">函館</option>
+                                    <option value="福島">福島</option>
+                                    <option value="小倉">小倉</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="trackTypeFilter" class="form-label">馬場種別</label>
+                                <select id="trackTypeFilter" class="form-control">
+                                    <option value="">すべて</option>
+                                    <option value="芝">芝</option>
+                                    <option value="ダート">ダート</option>
+                                    <option value="障害">障害</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="distanceFilter" class="form-label">
+                                    距離 <span id="distanceCount" class="filter-count-badge"></span>
+                                </label>
+                                <select id="distanceFilter" class="form-control">
+                                    <option value="">すべて</option>
+                                    <!-- 距離選択肢は動的に生成されます -->
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="trackConditionFilter" class="form-label">馬場状態</label>
+                                <select id="trackConditionFilter" class="form-control">
+                                    <option value="">すべて</option>
+                                    <option value="良">良</option>
+                                    <option value="稍重">稍重（稍も含む）</option>
+                                    <option value="重">重</option>
+                                    <option value="不良">不良</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="weatherFilter" class="form-label">天候</label>
+                                <select id="weatherFilter" class="form-control">
+                                    <option value="">すべて</option>
+                                    <option value="晴">晴</option>
+                                    <option value="曇">曇</option>
+                                    <option value="雨">雨</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="raceSearch" class="form-label">レース名検索</label>
+                                <input type="text" id="raceSearch" class="form-control" placeholder="レース名を入力">
+                            </div>
+                            <div class="form-group">
+                                <label for="horseSearch" class="form-label">馬名検索</label>
+                                <input type="text" id="horseSearch" class="form-control" placeholder="馬名を入力">
+                            </div>
+                        </div>
+                        <div class="date-range-filter">
+                            <h4>📅 日付範囲フィルター</h4>
+                            <div class="date-range-grid">
+                                <div class="form-group">
+                                    <label for="dateFrom" class="form-label">開始日</label>
+                                    <input type="date" id="dateFrom" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label for="dateTo" class="form-label">終了日</label>
+                                    <input type="date" id="dateTo" class="form-control">
+                                </div>
+                                <div class="form-group date-range-actions">
+                                    <button type="button" id="clearDateRange" class="btn btn--outline btn--sm">
+                                        🗑️ クリア
+                                    </button>
+                                    <button type="button" id="setRecentMonth" class="btn btn--secondary btn--sm">
+                                        📆 直近1ヶ月
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="filter-summary" id="filterSummary">
+                            <span class="filter-count">0レースが対象</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 統計分析タブセクション -->
+            <section class="stats-analysis-section">
+                <div class="card">
+                    <div class="card__header">
+                        <h3>📈 統計分析</h3>
+                        <div class="tab-nav">
+                            <button class="tab-btn active" data-tab="tansho">単勝期待値</button>
+                            <button class="tab-btn" data-tab="fukusho">複勝期待値</button>
+                            <button class="tab-btn" data-tab="umaren">馬連期待値</button>
+                            <button class="tab-btn" data-tab="umatan">馬単期待値</button>
+                            <button class="tab-btn" data-tab="wide">ワイド期待値</button>
+                            <button class="tab-btn" data-tab="sanrenpuku">3連複期待値</button>
+                            <button class="tab-btn" data-tab="sanrentan">3連単期待値</button>
+                        </div>
+                    </div>
+                    <div class="card__body">
+                        <!-- 単勝分析タブ -->
+                        <div class="tab-content active" id="tansho-tab">
+                            <div class="analysis-grid">
+                                <div class="chart-container">
+                                    <h4>人気別単勝期待値</h4>
+                                    <div class="chart-wrapper" style="position: relative; height: 400px;">
+                                        <canvas id="tanshoChart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="stats-summary">
+                                    <h4>単勝期待値サマリー</h4>
+                                    <div class="expected-value-filter">
+                                        <label class="form-label">
+                                            <input type="checkbox" id="tanshoFilterEnabled" class="filter-checkbox">
+                                            期待値フィルター: ≥
+                                        </label>
+                                        <input type="number" id="tanshoFilterThreshold" class="filter-threshold-input" 
+                                               value="100" min="0" max="1000" step="10">
+                                        <span>%</span>
+                                    </div>
+                                    <div id="tanshoStats" class="stats-list">
+                                        <!-- 統計データがここに表示されます -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- カスタム組み合わせ計算機 -->
+                            <div class="custom-calculator">
+                                <h4>🎯 カスタム組み合わせ計算機</h4>
+                                <div class="calculator-form">
+                                    <div class="form-group">
+                                        <label class="form-label">人気を選択（カンマ区切りで複数指定可）</label>
+                                        <input type="text" id="tanshoPopularitySelect" class="form-control" 
+                                               placeholder="例: 1,2,3 または 1">
+                                        <small class="form-text">複数の人気を指定すると、全パターンの期待値を一覧表示します</small>
+                                    </div>
+                                    <button id="calculateTansho" class="btn btn--primary btn--sm">計算</button>
+                                </div>
+                                <div id="tanshoResult" class="calculator-result"></div>
+                            </div>
+                        </div>
+
+                        <!-- 複勝分析タブ -->
+                        <div class="tab-content" id="fukusho-tab">
+                            <div class="analysis-grid">
+                                <div class="chart-container">
+                                    <h4>人気別複勝期待値</h4>
+                                    <div class="chart-wrapper" style="position: relative; height: 400px;">
+                                        <canvas id="fukushoChart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="stats-summary">
+                                    <h4>複勝期待値サマリー</h4>
+                                    <div class="expected-value-filter">
+                                        <label class="form-label">
+                                            <input type="checkbox" id="fukushoFilterEnabled" class="filter-checkbox">
+                                            期待値フィルター: ≥
+                                        </label>
+                                        <input type="number" id="fukushoFilterThreshold" class="filter-threshold-input" 
+                                               value="100" min="0" max="1000" step="10">
+                                        <span>%</span>
+                                    </div>
+                                    <div id="fukushoStats" class="stats-list">
+                                        <!-- 統計データがここに表示されます -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- カスタム組み合わせ計算機 -->
+                            <div class="custom-calculator">
+                                <h4>🎯 カスタム組み合わせ計算機</h4>
+                                <div class="calculator-form">
+                                    <div class="form-group">
+                                        <label class="form-label">人気を選択（カンマ区切りで複数指定可）</label>
+                                        <input type="text" id="fukushoPopularitySelect" class="form-control" 
+                                               placeholder="例: 1,2,3 または 1">
+                                        <small class="form-text">複数の人気を指定すると、全パターンの期待値を一覧表示します</small>
+                                    </div>
+                                    <button id="calculateFukusho" class="form-primary btn--sm">計算</button>
+                                </div>
+                                <div id="fukushoResult" class="calculator-result"></div>
+                            </div>
+                        </div>
+
+                        <!-- 馬連分析タブ -->
+                        <div class="tab-content" id="umaren-tab">
+                            <div class="analysis-grid">
+                                <div class="chart-container">
+                                    <h4>馬連人気パターン期待値</h4>
+                                    <div class="chart-wrapper" style="position: relative; height: 400px;">
+                                        <canvas id="umarenChart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="stats-summary">
+                                    <h4>馬連期待値サマリー</h4>
+                                    <div class="expected-value-filter">
+                                        <label class="form-label">
+                                            <input type="checkbox" id="umarenFilterEnabled" class="filter-checkbox">
+                                            期待値フィルター: ≥
+                                        </label>
+                                        <input type="number" id="umarenFilterThreshold" class="filter-threshold-input" 
+                                               value="100" min="0" max="1000" step="10">
+                                        <span>%</span>
+                                    </div>
+                                    <div id="umarenStats" class="stats-list">
+                                        <!-- 統計データがここに表示されます -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- カスタム組み合わせ計算機 -->
+                            <div class="custom-calculator">
+                                <h4>🎯 カスタム組み合わせ計算機</h4>
+                                <div class="calculator-form">
+                                    <div class="popularity-selectors">
+                                        <div class="form-group">
+                                            <label class="form-label">1頭目の人気（カンマ区切りで複数指定可）</label>
+                                            <input type="text" id="umarenPopularity1Text" class="form-control" 
+                                                   placeholder="例: 1,2,3 または選択">
+                                            <small class="form-text">または</small>
+                                            <select id="umarenPopularity1" class="form-control">
+                                                <option value="">選択してください</option>
+                                                <option value="1">1番人気</option>
+                                                <option value="2">2番人気</option>
+                                                <option value="3">3番人気</option>
+                                                <option value="4">4番人気</option>
+                                                <option value="5">5番人気</option>
+                                                <option value="6">6番人気</option>
+                                                <option value="7">7番人気</option>
+                                                <option value="8">8番人気</option>
+                                                <option value="9">9番人気</option>
+                                                <option value="10">10番人気</option>
+                                                <option value="11">11番人気</option>
+                                                <option value="12">12番人気</option>
+                                                <option value="13">13番人気</option>
+                                                <option value="14">14番人気</option>
+                                                <option value="15">15番人気</option>
+                                                <option value="16">16番人気</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">2頭目の人気（カンマ区切りで複数指定可）</label>
+                                            <input type="text" id="umarenPopularity2Text" class="form-control" 
+                                                   placeholder="例: 1,2,3 または選択">
+                                            <small class="form-text">または</small>
+                                            <select id="umarenPopularity2" class="form-control">
+                                                <option value="">選択してください</option>
+                                                <option value="1">1番人気</option>
+                                                <option value="2">2番人気</option>
+                                                <option value="3">3番人気</option>
+                                                <option value="4">4番人気</option>
+                                                <option value="5">5番人気</option>
+                                                <option value="6">6番人気</option>
+                                                <option value="7">7番人気</option>
+                                                <option value="8">8番人気</option>
+                                                <option value="9">9番人気</option>
+                                                <option value="10">10番人気</option>
+                                                <option value="11">11番人気</option>
+                                                <option value="12">12番人気</option>
+                                                <option value="13">13番人気</option>
+                                                <option value="14">14番人気</option>
+                                                <option value="15">15番人気</option>
+                                                <option value="16">16番人気</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <small class="form-text">複数の人気を指定すると、全組み合わせパターンの期待値を一覧表示します</small>
+                                    <button id="calculateUmaren" class="btn btn--primary btn--sm">計算</button>
+                                </div>
+                                <div id="umarenResult" class="calculator-result"></div>
+                            </div>
+                        </div>
+
+                        <!-- 馬単分析タブ -->
+                        <div class="tab-content" id="umatan-tab">
+                            <div class="analysis-grid">
+                                <div class="chart-container">
+                                    <h4>馬単人気パターン期待値</h4>
+                                    <div class="chart-wrapper" style="position: relative; height: 400px;">
+                                        <canvas id="umatanChart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="stats-summary">
+                                    <h4>馬単期待値サマリー</h4>
+                                    <div class="expected-value-filter">
+                                        <label class="form-label">
+                                            <input type="checkbox" id="umatanFilterEnabled" class="filter-checkbox">
+                                            期待値フィルター: ≥
+                                        </label>
+                                        <input type="number" id="umatanFilterThreshold" class="filter-threshold-input" 
+                                               value="100" min="0" max="1000" step="10">
+                                        <span>%</span>
+                                    </div>
+                                    <div id="umatanStats" class="stats-list">
+                                        <!-- 統計データがここに表示されます -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- カスタム組み合わせ計算機 -->
+                            <div class="custom-calculator">
+                                <h4>🎯 カスタム組み合わせ計算機</h4>
+                                <div class="calculator-form">
+                                    <div class="popularity-selectors">
+                                        <div class="form-group">
+                                            <label class="form-label">1着の人気（カンマ区切りで複数指定可）</label>
+                                            <input type="text" id="umatanPopularity1Text" class="form-control" 
+                                                   placeholder="例: 1,2,3 または選択">
+                                            <small class="form-text">または</small>
+                                            <select id="umatanPopularity1" class="form-control">
+                                                <option value="">選択してください</option>
+                                                <option value="1">1番人気</option>
+                                                <option value="2">2番人気</option>
+                                                <option value="3">3番人気</option>
+                                                <option value="4">4番人気</option>
+                                                <option value="5">5番人気</option>
+                                                <option value="6">6番人気</option>
+                                                <option value="7">7番人気</option>
+                                                <option value="8">8番人気</option>
+                                                <option value="9">9番人気</option>
+                                                <option value="10">10番人気</option>
+                                                <option value="11">11番人気</option>
+                                                <option value="12">12番人気</option>
+                                                <option value="13">13番人気</option>
+                                                <option value="14">14番人気</option>
+                                                <option value="15">15番人気</option>
+                                                <option value="16">16番人気</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">2着の人気（カンマ区切りで複数指定可）</label>
+                                            <input type="text" id="umatanPopularity2Text" class="form-control" 
+                                                   placeholder="例: 1,2,3 または選択">
+                                            <small class="form-text">または</small>
+                                            <select id="umatanPopularity2" class="form-control">
+                                                <option value="">選択してください</option>
+                                                <option value="1">1番人気</option>
+                                                <option value="2">2番人気</option>
+                                                <option value="3">3番人気</option>
+                                                <option value="4">4番人気</option>
+                                                <option value="5">5番人気</option>
+                                                <option value="6">6番人気</option>
+                                                <option value="7">7番人気</option>
+                                                <option value="8">8番人気</option>
+                                                <option value="9">9番人気</option>
+                                                <option value="10">10番人気</option>
+                                                <option value="11">11番人気</option>
+                                                <option value="12">12番人気</option>
+                                                <option value="13">13番人気</option>
+                                                <option value="14">14番人気</option>
+                                                <option value="15">15番人気</option>
+                                                <option value="16">16番人気</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <small class="form-text">複数の人気を指定すると、全順列パターンの期待値を一覧表示します</small>
+                                    <button id="calculateUmatan" class="btn btn--primary btn--sm">計算</button>
+                                </div>
+                                <div id="umatanResult" class="calculator-result"></div>
+                            </div>
+                        </div>
+
+                        <!-- ワイド分析タブ -->
+                        <div class="tab-content" id="wide-tab">
+                            <div class="analysis-grid">
+                                <div class="chart-container">
+                                    <h4>ワイド人気パターン期待値</h4>
+                                    <div class="chart-wrapper" style="position: relative; height: 400px;">
+                                        <canvas id="wideChart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="stats-summary">
+                                    <h4>ワイド期待値サマリー</h4>
+                                    <div class="expected-value-filter">
+                                        <label class="form-label">
+                                            <input type="checkbox" id="wideFilterEnabled" class="filter-checkbox">
+                                            期待値フィルター: ≥
+                                        </label>
+                                        <input type="number" id="wideFilterThreshold" class="filter-threshold-input" 
+                                               value="100" min="0" max="1000" step="10">
+                                        <span>%</span>
+                                    </div>
+                                    <div id="wideStats" class="stats-list">
+                                        <!-- 統計データがここに表示されます -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- カスタム組み合わせ計算機 -->
+                            <div class="custom-calculator">
+                                <h4>🎯 カスタム組み合わせ計算機</h4>
+                                <div class="calculator-form">
+                                    <div class="popularity-selectors">
+                                        <div class="form-group">
+                                            <label class="form-label">1頭目の人気（カンマ区切りで複数指定可）</label>
+                                            <input type="text" id="widePopularity1Text" class="form-control" 
+                                                   placeholder="例: 1,2,3 または選択">
+                                            <small class="form-text">または</small>
+                                            <select id="widePopularity1" class="form-control">
+                                                <option value="">選択してください</option>
+                                                <option value="1">1番人気</option>
+                                                <option value="2">2番人気</option>
+                                                <option value="3">3番人気</option>
+                                                <option value="4">4番人気</option>
+                                                <option value="5">5番人気</option>
+                                                <option value="6">6番人気</option>
+                                                <option value="7">7番人気</option>
+                                                <option value="8">8番人気</option>
+                                                <option value="9">9番人気</option>
+                                                <option value="10">10番人気</option>
+                                                <option value="11">11番人気</option>
+                                                <option value="12">12番人気</option>
+                                                <option value="13">13番人気</option>
+                                                <option value="14">14番人気</option>
+                                                <option value="15">15番人気</option>
+                                                <option value="16">16番人気</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">2頭目の人気（カンマ区切りで複数指定可）</label>
+                                            <input type="text" id="widePopularity2Text" class="form-control" 
+                                                   placeholder="例: 1,2,3 または選択">
+                                            <small class="form-text">または</small>
+                                            <select id="widePopularity2" class="form-control">
+                                                <option value="">選択してください</option>
+                                                <option value="1">1番人気</option>
+                                                <option value="2">2番人気</option>
+                                                <option value="3">3番人気</option>
+                                                <option value="4">4番人気</option>
+                                                <option value="5">5番人気</option>
+                                                <option value="6">6番人気</option>
+                                                <option value="7">7番人気</option>
+                                                <option value="8">8番人気</option>
+                                                <option value="9">9番人気</option>
+                                                <option value="10">10番人気</option>
+                                                <option value="11">11番人気</option>
+                                                <option value="12">12番人気</option>
+                                                <option value="13">13番人気</option>
+                                                <option value="14">14番人気</option>
+                                                <option value="15">15番人気</option>
+                                                <option value="16">16番人気</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <small class="form-text">複数の人気を指定すると、全組み合わせパターンの期待値を一覧表示します</small>
+                                    <button id="calculateWide" class="btn btn--primary btn--sm">計算</button>
+                                </div>
+                                <div id="wideResult" class="calculator-result"></div>
+                            </div>
+                        </div>
+
+                        <!-- 3連複分析タブ -->
+                        <div class="tab-content" id="sanrenpuku-tab">
+                            <div class="analysis-grid">
+                                <div class="chart-container">
+                                    <h4>3連複人気パターン期待値</h4>
+                                    <div class="chart-wrapper" style="position: relative; height: 400px;">
+                                        <canvas id="sanrenpukuChart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="stats-summary">
+                                    <h4>3連複期待値サマリー</h4>
+                                    <div class="expected-value-filter">
+                                        <label class="form-label">
+                                            <input type="checkbox" id="sanrenpukuFilterEnabled" class="filter-checkbox">
+                                            期待値フィルター: ≥
+                                        </label>
+                                        <input type="number" id="sanrenpukuFilterThreshold" class="filter-threshold-input" 
+                                               value="100" min="0" max="1000" step="10">
+                                        <span>%</span>
+                                    </div>
+                                    <div id="sanrenpukuStats" class="stats-list">
+                                        <!-- 統計データがここに表示されます -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- カスタム組み合わせ計算機 -->
+                            <div class="custom-calculator">
+                                <h4>🎯 カスタム組み合わせ計算機</h4>
+                                <div class="calculator-form">
+                                    <div class="popularity-selectors">
+                                        <div class="form-group">
+                                            <label class="form-label">1着の人気（カンマ区切りで複数指定可）</label>
+                                            <input type="text" id="sanrenpukuPopularity1Text" class="form-control" 
+                                                   placeholder="例: 1,2,3 または選択">
+                                            <small class="form-text">または</small>
+                                            <select id="sanrenpukuPopularity1" class="form-control">
+                                                <option value="">選択してください</option>
+                                                <option value="1">1番人気</option>
+                                                <option value="2">2番人気</option>
+                                                <option value="3">3番人気</option>
+                                                <option value="4">4番人気</option>
+                                                <option value="5">5番人気</option>
+                                                <option value="6">6番人気</option>
+                                                <option value="7">7番人気</option>
+                                                <option value="8">8番人気</option>
+                                                <option value="9">9番人気</option>
+                                                <option value="10">10番人気</option>
+                                                <option value="11">11番人気</option>
+                                                <option value="12">12番人気</option>
+                                                <option value="13">13番人気</option>
+                                                <option value="14">14番人気</option>
+                                                <option value="15">15番人気</option>
+                                                <option value="16">16番人気</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">2着の人気（カンマ区切りで複数指定可）</label>
+                                            <input type="text" id="sanrenpukuPopularity2Text" class="form-control" 
+                                                   placeholder="例: 1,2,3 または選択">
+                                            <small class="form-text">または</small>
+                                            <select id="sanrenpukuPopularity2" class="form-control">
+                                                <option value="">選択してください</option>
+                                                <option value="1">1番人気</option>
+                                                <option value="2">2番人気</option>
+                                                <option value="3">3番人気</option>
+                                                <option value="4">4番人気</option>
+                                                <option value="5">5番人気</option>
+                                                <option value="6">6番人気</option>
+                                                <option value="7">7番人気</option>
+                                                <option value="8">8番人気</option>
+                                                <option value="9">9番人気</option>
+                                                <option value="10">10番人気</option>
+                                                <option value="11">11番人気</option>
+                                                <option value="12">12番人気</option>
+                                                <option value="13">13番人気</option>
+                                                <option value="14">14番人気</option>
+                                                <option value="15">15番人気</option>
+                                                <option value="16">16番人気</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">3着の人気（カンマ区切りで複数指定可）</label>
+                                            <input type="text" id="sanrenpukuPopularity3Text" class="form-control" 
+                                                   placeholder="例: 1,2,3 または選択">
+                                            <small class="form-text">または</small>
+                                            <select id="sanrenpukuPopularity3" class="form-control">
+                                                <option value="">選択してください</option>
+                                                <option value="1">1番人気</option>
+                                                <option value="2">2番人気</option>
+                                                <option value="3">3番人気</option>
+                                                <option value="4">4番人気</option>
+                                                <option value="5">5番人気</option>
+                                                <option value="6">6番人気</option>
+                                                <option value="7">7番人気</option>
+                                                <option value="8">8番人気</option>
+                                                <option value="9">9番人気</option>
+                                                <option value="10">10番人気</option>
+                                                <option value="11">11番人気</option>
+                                                <option value="12">12番人気</option>
+                                                <option value="13">13番人気</option>
+                                                <option value="14">14番人気</option>
+                                                <option value="15">15番人気</option>
+                                                <option value="16">16番人気</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <small class="form-text">複数の人気を指定すると、全組み合わせパターンの期待値を一覧表示します</small>
+                                    <button id="calculateSanrenpuku" class="btn btn--primary btn--sm">計算</button>
+                                </div>
+                                <div id="sanrenpukuResult" class="calculator-result"></div>
+                            </div>
+                        </div>
+
+                        <!-- 3連単分析タブ -->
+                        <div class="tab-content" id="sanrentan-tab">
+                            <div class="analysis-grid">
+                                <div class="chart-container">
+                                    <h4>3連単人気パターン期待値</h4>
+                                    <div class="chart-wrapper" style="position: relative; height: 400px;">
+                                        <canvas id="sanrentanChart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="stats-summary">
+                                    <h4>3連単期待値サマリー</h4>
+                                    <div class="expected-value-filter">
+                                        <label class="form-label">
+                                            <input type="checkbox" id="sanrentanFilterEnabled" class="filter-checkbox">
+                                            期待値フィルター: ≥
+                                        </label>
+                                        <input type="number" id="sanrentanFilterThreshold" class="filter-threshold-input" 
+                                               value="100" min="0" max="1000" step="10">
+                                        <span>%</span>
+                                    </div>
+                                    <div id="sanrentanStats" class="stats-list">
+                                        <!-- 統計データがここに表示されます -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- カスタム組み合わせ計算機 -->
+                            <div class="custom-calculator">
+                                <h4>🎯 カスタム組み合わせ計算機</h4>
+                                <div class="calculator-form">
+                                    <div class="popularity-selectors">
+                                        <div class="form-group">
+                                            <label class="form-label">1着の人気（カンマ区切りで複数指定可）</label>
+                                            <input type="text" id="sanrentanPopularity1Text" class="form-control" 
+                                                   placeholder="例: 1,2,3 または選択">
+                                            <small class="form-text">または</small>
+                                            <select id="sanrentanPopularity1" class="form-control">
+                                                <option value="">選択してください</option>
+                                                <option value="1">1番人気</option>
+                                                <option value="2">2番人気</option>
+                                                <option value="3">3番人気</option>
+                                                <option value="4">4番人気</option>
+                                                <option value="5">5番人気</option>
+                                                <option value="6">6番人気</option>
+                                                <option value="7">7番人気</option>
+                                                <option value="8">8番人気</option>
+                                                <option value="9">9番人気</option>
+                                                <option value="10">10番人気</option>
+                                                <option value="11">11番人気</option>
+                                                <option value="12">12番人気</option>
+                                                <option value="13">13番人気</option>
+                                                <option value="14">14番人気</option>
+                                                <option value="15">15番人気</option>
+                                                <option value="16">16番人気</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">2着の人気（カンマ区切りで複数指定可）</label>
+                                            <input type="text" id="sanrentanPopularity2Text" class="form-control" 
+                                                   placeholder="例: 1,2,3 または選択">
+                                            <small class="form-text">または</small>
+                                            <select id="sanrentanPopularity2" class="form-control">
+                                                <option value="">選択してください</option>
+                                                <option value="1">1番人気</option>
+                                                <option value="2">2番人気</option>
+                                                <option value="3">3番人気</option>
+                                                <option value="4">4番人気</option>
+                                                <option value="5">5番人気</option>
+                                                <option value="6">6番人気</option>
+                                                <option value="7">7番人気</option>
+                                                <option value="8">8番人気</option>
+                                                <option value="9">9番人気</option>
+                                                <option value="10">10番人気</option>
+                                                <option value="11">11番人気</option>
+                                                <option value="12">12番人気</option>
+                                                <option value="13">13番人気</option>
+                                                <option value="14">14番人気</option>
+                                                <option value="15">15番人気</option>
+                                                <option value="16">16番人気</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label">3着の人気（カンマ区切りで複数指定可）</label>
+                                            <input type="text" id="sanrentanPopularity3Text" class="form-control" 
+                                                   placeholder="例: 1,2,3 または選択">
+                                            <small class="form-text">または</small>
+                                            <select id="sanrentanPopularity3" class="form-control">
+                                                <option value="">選択してください</option>
+                                                <option value="1">1番人気</option>
+                                                <option value="2">2番人気</option>
+                                                <option value="3">3番人気</option>
+                                                <option value="4">4番人気</option>
+                                                <option value="5">5番人気</option>
+                                                <option value="6">6番人気</option>
+                                                <option value="7">7番人気</option>
+                                                <option value="8">8番人気</option>
+                                                <option value="9">9番人気</option>
+                                                <option value="10">10番人気</option>
+                                                <option value="11">11番人気</option>
+                                                <option value="12">12番人気</option>
+                                                <option value="13">13番人気</option>
+                                                <option value="14">14番人気</option>
+                                                <option value="15">15番人気</option>
+                                                <option value="16">16番人気</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <small class="form-text">複数の人気を指定すると、全順列パターンの期待値を一覧表示します</small>
+                                    <button id="calculateSanrentan" class="btn btn--primary btn--sm">計算</button>
+                                </div>
+                                <div id="sanrentanResult" class="calculator-result"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 基本統計情報セクション -->
+            <section class="basic-stats-section">
+                <h3>基本統計情報</h3>
+                <div class="stats-grid" id="basicStatsContainer">
+                    <!-- 基本統計カードがJavaScriptで生成されます -->
+                </div>
+            </section>
+
+            <!-- カスタム期待値計算機セクション -->
+            <section class="custom-calculator-section">
+                <div class="card">
+                    <div class="card__header">
+                        <h3>🎯 カスタム期待値計算機</h3>
+                        <p class="text-secondary">任意の人気組み合わせの期待値を計算</p>
+                    </div>
+                    <div class="card__body">
+                        <div class="calculator-tabs">
+                            <button class="calculator-tab-btn active" data-calc-tab="tansho">単勝</button>
+                            <button class="calculator-tab-btn" data-calc-tab="fukusho">複勝</button>
+                            <button class="calculator-tab-btn" data-calc-tab="umaren">馬連</button>
+                            <button class="calculator-tab-btn" data-calc-tab="umatan">馬単</button>
+                            <button class="calculator-tab-btn" data-calc-tab="wide">ワイド</button>
+                            <button class="calculator-tab-btn" data-calc-tab="sanrenpuku">3連複</button>
+                            <button class="calculator-tab-btn" data-calc-tab="sanrentan">3連単</button>
+                        </div>
+
+                        <!-- 単勝計算機 -->
+                        <div class="calculator-tab-content active" id="calc-tansho-tab">
+                            <div class="calculator-form">
+                                <div class="form-group">
+                                    <label class="form-label">人気を選択</label>
+                                    <select id="calcTanshoPopularity" class="form-control">
+                                        <option value="">人気を選択してください</option>
+                                        <option value="1">1番人気</option>
+                                        <option value="2">2番人気</option>
+                                        <option value="3">3番人気</option>
+                                        <option value="4">4番人気</option>
+                                        <option value="5">5番人気</option>
+                                        <option value="6">6番人気</option>
+                                        <option value="7">7番人気</option>
+                                        <option value="8">8番人気</option>
+                                        <option value="9">9番人気</option>
+                                        <option value="10">10番人気</option>
+                                        <option value="11">11番人気</option>
+                                        <option value="12">12番人気</option>
+                                        <option value="13">13番人気</option>
+                                        <option value="14">14番人気</option>
+                                        <option value="15">15番人気</option>
+                                        <option value="16">16番人気</option>
+                                    </select>
+                                </div>
+                                <button id="calcTanshoBtn" class="btn btn--primary btn--sm">計算</button>
+                            </div>
+                            <div id="calcTanshoResult" class="calculator-result"></div>
+                        </div>
+
+                        <!-- 複勝計算機 -->
+                        <div class="calculator-tab-content" id="calc-fukusho-tab">
+                            <div class="calculator-form">
+                                <div class="form-group">
+                                    <label class="form-label">人気を選択</label>
+                                    <select id="calcFukushoPopularity" class="form-control">
+                                        <option value="">人気を選択してください</option>
+                                        <option value="1">1番人気</option>
+                                        <option value="2">2番人気</option>
+                                        <option value="3">3番人気</option>
+                                        <option value="4">4番人気</option>
+                                        <option value="5">5番人気</option>
+                                        <option value="6">6番人気</option>
+                                        <option value="7">7番人気</option>
+                                        <option value="8">8番人気</option>
+                                        <option value="9">9番人気</option>
+                                        <option value="10">10番人気</option>
+                                        <option value="11">11番人気</option>
+                                        <option value="12">12番人気</option>
+                                        <option value="13">13番人気</option>
+                                        <option value="14">14番人気</option>
+                                        <option value="15">15番人気</option>
+                                        <option value="16">16番人気</option>
+                                    </select>
+                                </div>
+                                <button id="calcFukushoBtn" class="btn btn--primary btn--sm">計算</button>
+                            </div>
+                            <div id="calcFukushoResult" class="calculator-result"></div>
+                        </div>
+
+                        <!-- 馬連計算機 -->
+                        <div class="calculator-tab-content" id="calc-umaren-tab">
+                            <div class="calculator-form">
+                                <div class="popularity-selectors">
+                                    <div class="form-group">
+                                        <label class="form-label">1頭目の人気</label>
+                                        <select id="calcUmarenPopularity1" class="form-control">
+                                            <option value="">選択してください</option>
+                                            <option value="1">1番人気</option>
+                                            <option value="2">2番人気</option>
+                                            <option value="3">3番人気</option>
+                                            <option value="4">4番人気</option>
+                                            <option value="5">5番人気</option>
+                                            <option value="6">6番人気</option>
+                                            <option value="7">7番人気</option>
+                                            <option value="8">8番人気</option>
+                                            <option value="9">9番人気</option>
+                                            <option value="10">10番人気</option>
+                                            <option value="11">11番人気</option>
+                                            <option value="12">12番人気</option>
+                                            <option value="13">13番人気</option>
+                                            <option value="14">14番人気</option>
+                                            <option value="15">15番人気</option>
+                                            <option value="16">16番人気</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">2頭目の人気</label>
+                                        <select id="calcUmarenPopularity2" class="form-control">
+                                            <option value="">選択してください</option>
+                                            <option value="1">1番人気</option>
+                                            <option value="2">2番人気</option>
+                                            <option value="3">3番人気</option>
+                                            <option value="4">4番人気</option>
+                                            <option value="5">5番人気</option>
+                                            <option value="6">6番人気</option>
+                                            <option value="7">7番人気</option>
+                                            <option value="8">8番人気</option>
+                                            <option value="9">9番人気</option>
+                                            <option value="10">10番人気</option>
+                                            <option value="11">11番人気</option>
+                                            <option value="12">12番人気</option>
+                                            <option value="13">13番人気</option>
+                                            <option value="14">14番人気</option>
+                                            <option value="15">15番人気</option>
+                                            <option value="16">16番人気</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button id="calcUmarenBtn" class="btn btn--primary btn--sm">計算</button>
+                            </div>
+                            <div id="calcUmarenResult" class="calculator-result"></div>
+                        </div>
+
+                        <!-- 馬単計算機 -->
+                        <div class="calculator-tab-content" id="calc-umatan-tab">
+                            <div class="calculator-form">
+                                <div class="popularity-selectors">
+                                    <div class="form-group">
+                                        <label class="form-label">1着の人気</label>
+                                        <select id="calcUmatanPopularity1" class="form-control">
+                                            <option value="">選択してください</option>
+                                            <option value="1">1番人気</option>
+                                            <option value="2">2番人気</option>
+                                            <option value="3">3番人気</option>
+                                            <option value="4">4番人気</option>
+                                            <option value="5">5番人気</option>
+                                            <option value="6">6番人気</option>
+                                            <option value="7">7番人気</option>
+                                            <option value="8">8番人気</option>
+                                            <option value="9">9番人気</option>
+                                            <option value="10">10番人気</option>
+                                            <option value="11">11番人気</option>
+                                            <option value="12">12番人気</option>
+                                            <option value="13">13番人気</option>
+                                            <option value="14">14番人気</option>
+                                            <option value="15">15番人気</option>
+                                            <option value="16">16番人気</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">2着の人気</label>
+                                        <select id="calcUmatanPopularity2" class="form-control">
+                                            <option value="">選択してください</option>
+                                            <option value="1">1番人気</option>
+                                            <option value="2">2番人気</option>
+                                            <option value="3">3番人気</option>
+                                            <option value="4">4番人気</option>
+                                            <option value="5">5番人気</option>
+                                            <option value="6">6番人気</option>
+                                            <option value="7">7番人気</option>
+                                            <option value="8">8番人気</option>
+                                            <option value="9">9番人気</option>
+                                            <option value="10">10番人気</option>
+                                            <option value="11">11番人気</option>
+                                            <option value="12">12番人気</option>
+                                            <option value="13">13番人気</option>
+                                            <option value="14">14番人気</option>
+                                            <option value="15">15番人気</option>
+                                            <option value="16">16番人気</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button id="calcUmatanBtn" class="btn btn--primary btn--sm">計算</button>
+                            </div>
+                            <div id="calcUmatanResult" class="calculator-result"></div>
+                        </div>
+
+                        <!-- ワイド計算機 -->
+                        <div class="calculator-tab-content" id="calc-wide-tab">
+                            <div class="calculator-form">
+                                <div class="popularity-selectors">
+                                    <div class="form-group">
+                                        <label class="form-label">1頭目の人気</label>
+                                        <select id="calcWidePopularity1" class="form-control">
+                                            <option value="">選択してください</option>
+                                            <option value="1">1番人気</option>
+                                            <option value="2">2番人気</option>
+                                            <option value="3">3番人気</option>
+                                            <option value="4">4番人気</option>
+                                            <option value="5">5番人気</option>
+                                            <option value="6">6番人気</option>
+                                            <option value="7">7番人気</option>
+                                            <option value="8">8番人気</option>
+                                            <option value="9">9番人気</option>
+                                            <option value="10">10番人気</option>
+                                            <option value="11">11番人気</option>
+                                            <option value="12">12番人気</option>
+                                            <option value="13">13番人気</option>
+                                            <option value="14">14番人気</option>
+                                            <option value="15">15番人気</option>
+                                            <option value="16">16番人気</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">2頭目の人気</label>
+                                        <select id="calcWidePopularity2" class="form-control">
+                                            <option value="">選択してください</option>
+                                            <option value="1">1番人気</option>
+                                            <option value="2">2番人気</option>
+                                            <option value="3">3番人気</option>
+                                            <option value="4">4番人気</option>
+                                            <option value="5">5番人気</option>
+                                            <option value="6">6番人気</option>
+                                            <option value="7">7番人気</option>
+                                            <option value="8">8番人気</option>
+                                            <option value="9">9番人気</option>
+                                            <option value="10">10番人気</option>
+                                            <option value="11">11番人気</option>
+                                            <option value="12">12番人気</option>
+                                            <option value="13">13番人気</option>
+                                            <option value="14">14番人気</option>
+                                            <option value="15">15番人気</option>
+                                            <option value="16">16番人気</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button id="calcWideBtn" class="btn btn--primary btn--sm">計算</button>
+                            </div>
+                            <div id="calcWideResult" class="calculator-result"></div>
+                        </div>
+
+                        <!-- 3連複計算機 -->
+                        <div class="calculator-tab-content" id="calc-sanrenpuku-tab">
+                            <div class="calculator-form">
+                                <div class="popularity-selectors">
+                                    <div class="form-group">
+                                        <label class="form-label">1着の人気</label>
+                                        <select id="calcSanrenpukuPopularity1" class="form-control">
+                                            <option value="">選択してください</option>
+                                            <option value="1">1番人気</option>
+                                            <option value="2">2番人気</option>
+                                            <option value="3">3番人気</option>
+                                            <option value="4">4番人気</option>
+                                            <option value="5">5番人気</option>
+                                            <option value="6">6番人気</option>
+                                            <option value="7">7番人気</option>
+                                            <option value="8">8番人気</option>
+                                            <option value="9">9番人気</option>
+                                            <option value="10">10番人気</option>
+                                            <option value="11">11番人気</option>
+                                            <option value="12">12番人気</option>
+                                            <option value="13">13番人気</option>
+                                            <option value="14">14番人気</option>
+                                            <option value="15">15番人気</option>
+                                            <option value="16">16番人気</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">2着の人気</label>
+                                        <select id="calcSanrenpukuPopularity2" class="form-control">
+                                            <option value="">選択してください</option>
+                                            <option value="1">1番人気</option>
+                                            <option value="2">2番人気</option>
+                                            <option value="3">3番人気</option>
+                                            <option value="4">4番人気</option>
+                                            <option value="5">5番人気</option>
+                                            <option value="6">6番人気</option>
+                                            <option value="7">7番人気</option>
+                                            <option value="8">8番人気</option>
+                                            <option value="9">9番人気</option>
+                                            <option value="10">10番人気</option>
+                                            <option value="11">11番人気</option>
+                                            <option value="12">12番人気</option>
+                                            <option value="13">13番人気</option>
+                                            <option value="14">14番人気</option>
+                                            <option value="15">15番人気</option>
+                                            <option value="16">16番人気</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">3着の人気</label>
+                                        <select id="calcSanrenpukuPopularity3" class="form-control">
+                                            <option value="">選択してください</option>
+                                            <option value="1">1番人気</option>
+                                            <option value="2">2番人気</option>
+                                            <option value="3">3番人気</option>
+                                            <option value="4">4番人気</option>
+                                            <option value="5">5番人気</option>
+                                            <option value="6">6番人気</option>
+                                            <option value="7">7番人気</option>
+                                            <option value="8">8番人気</option>
+                                            <option value="9">9番人気</option>
+                                            <option value="10">10番人気</option>
+                                            <option value="11">11番人気</option>
+                                            <option value="12">12番人気</option>
+                                            <option value="13">13番人気</option>
+                                            <option value="14">14番人気</option>
+                                            <option value="15">15番人気</option>
+                                            <option value="16">16番人気</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button id="calcSanrenpukuBtn" class="btn btn--primary btn--sm">計算</button>
+                            </div>
+                            <div id="calcSanrenpukuResult" class="calculator-result"></div>
+                        </div>
+
+                        <!-- 3連単計算機 -->
+                        <div class="calculator-tab-content" id="calc-sanrentan-tab">
+                            <div class="calculator-form">
+                                <div class="popularity-selectors">
+                                    <div class="form-group">
+                                        <label class="form-label">1着の人気</label>
+                                        <select id="calcSanrentanPopularity1" class="form-control">
+                                            <option value="">選択してください</option>
+                                            <option value="1">1番人気</option>
+                                            <option value="2">2番人気</option>
+                                            <option value="3">3番人気</option>
+                                            <option value="4">4番人気</option>
+                                            <option value="5">5番人気</option>
+                                            <option value="6">6番人気</option>
+                                            <option value="7">7番人気</option>
+                                            <option value="8">8番人気</option>
+                                            <option value="9">9番人気</option>
+                                            <option value="10">10番人気</option>
+                                            <option value="11">11番人気</option>
+                                            <option value="12">12番人気</option>
+                                            <option value="13">13番人気</option>
+                                            <option value="14">14番人気</option>
+                                            <option value="15">15番人気</option>
+                                            <option value="16">16番人気</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">2着の人気</label>
+                                        <select id="calcSanrentanPopularity2" class="form-control">
+                                            <option value="">選択してください</option>
+                                            <option value="1">1番人気</option>
+                                            <option value="2">2番人気</option>
+                                            <option value="3">3番人気</option>
+                                            <option value="4">4番人気</option>
+                                            <option value="5">5番人気</option>
+                                            <option value="6">6番人気</option>
+                                            <option value="7">7番人気</option>
+                                            <option value="8">8番人気</option>
+                                            <option value="9">9番人気</option>
+                                            <option value="10">10番人気</option>
+                                            <option value="11">11番人気</option>
+                                            <option value="12">12番人気</option>
+                                            <option value="13">13番人気</option>
+                                            <option value="14">14番人気</option>
+                                            <option value="15">15番人気</option>
+                                            <option value="16">16番人気</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">3着の人気</label>
+                                        <select id="calcSanrentanPopularity3" class="form-control">
+                                            <option value="">選択してください</option>
+                                            <option value="1">1番人気</option>
+                                            <option value="2">2番人気</option>
+                                            <option value="3">3番人気</option>
+                                            <option value="4">4番人気</option>
+                                            <option value="5">5番人気</option>
+                                            <option value="6">6番人気</option>
+                                            <option value="7">7番人気</option>
+                                            <option value="8">8番人気</option>
+                                            <option value="9">9番人気</option>
+                                            <option value="10">10番人気</option>
+                                            <option value="11">11番人気</option>
+                                            <option value="12">12番人気</option>
+                                            <option value="13">13番人気</option>
+                                            <option value="14">14番人気</option>
+                                            <option value="15">15番人気</option>
+                                            <option value="16">16番人気</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button id="calcSanrentanBtn" class="btn btn--primary btn--sm">計算</button>
+                            </div>
+                            <div id="calcSanrentanResult" class="calculator-result"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- レース結果セクション -->
+            <section class="results-section">
+                <div class="card">
+                    <div class="card__header">
+                        <h3>レース結果詳細</h3>
+                        <div class="results-count" id="resultsCount">0レース</div>
+                    </div>
+                    <div class="card__body">
+                        <div id="raceResults" class="race-results">
+                            <!-- レース結果がJavaScriptで生成されます -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2025 競馬レース結果統計分析システム - 高度なデータ分析ツール</p>
+        </footer>
+    </div>
+
+    <!-- 開発用：モジュールが使えない場合の代替 -->
+    <script>
+        // モジュールサポートチェック
+        const supportsModules = 'noModule' in HTMLScriptElement.prototype;
+        console.log('モジュールサポート:', supportsModules);
+
+        if (!supportsModules) {
+            console.warn('このブラウザはES6モジュールをサポートしていません');
+        }
+    </script>
+
+    <!-- 直接読み込み版（CORSエラー回避） -->
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/dataManager.js"></script>
+    <script src="js/dataParser.js"></script>
+    <script src="js/statistics.js"></script>
+    <script src="js/calculator.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        // Register service worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch(registrationError => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
+</body>
+
+</html>
