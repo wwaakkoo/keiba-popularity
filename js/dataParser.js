@@ -5,16 +5,34 @@ class DataParser {
     }
 
     parseRaceData(rawData, racetrack, date, horseCounts = {}) {
+        // 入力データの検証
+        if (!rawData || typeof rawData !== 'string') {
+            throw new Error('レースデータが空または無効です。テキストデータを入力してください。');
+        }
+
+        if (!racetrack || !date) {
+            throw new Error('競馬場と日付を選択してください。');
+        }
+
         const lines = rawData.split('\n');
         const races = [];
-        
+        const errors = [];
+
+        // データ行が存在するかチェック
+        if (lines.length < 2) {
+            throw new Error('レースデータが不足しています。ヘッダー行とデータ行を含むタブ区切りテキストを入力してください。');
+        }
+
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i].trim();
             if (!line) continue;
-            
+
             const parts = line.split('\t');
             // 最低限必要なカラム数をチェック（R, レース名, 条件, 馬場・天候）
-            if (parts.length < 4) continue;
+            if (parts.length < 4) {
+                errors.push(`${i+1}行目: 必要なカラムが不足しています（最低4カラム必要）`);
+                continue;
+            }
             
             const raceCondition = parts[2];
             const trackWeather = parts[3];
@@ -35,41 +53,74 @@ class DataParser {
             };
 
             // 1着、2着、3着の情報を解析（同着対応）
-            for (let pos = 1; pos <= 3; pos++) {
-                const horseNumIndex = 4 + (pos - 1) * 2;
-                const horseInfoIndex = 5 + (pos - 1) * 2;
-                
-                if (horseNumIndex < parts.length && horseInfoIndex < parts.length) {
-                    const horseNumStr = parts[horseNumIndex];
-                    const horseInfoStr = parts[horseInfoIndex];
-                    
-                    // 中黒（・）で分割して同着を検出
-                    const horseNums = horseNumStr.split('・').map(s => s.trim()).filter(s => s);
-                    const horseInfos = horseInfoStr.split('・').map(s => s.trim()).filter(s => s);
-                    
-                    // 同着の場合、複数の馬を同じ着順で登録
-                    for (let j = 0; j < Math.max(horseNums.length, horseInfos.length); j++) {
-                        const horseNum = horseNums[j] || horseNums[0];
-                        const horseInfo = horseInfos[j] || horseInfos[0];
-                        
-                        if (horseNum && horseInfo) {
-                            const { name: horseName, popularity } = this.parseHorseInfo(horseInfo);
-                            
-                            race.results.push({
-                                position: pos,
-                                number: parseInt(horseNum),
-                                name: horseName,
-                                popularity: popularity,
-                                isTied: horseNums.length > 1 // 同着フラグ
-                            });
+            try {
+                for (let pos = 1; pos <= 3; pos++) {
+                    const horseNumIndex = 4 + (pos - 1) * 2;
+                    const horseInfoIndex = 5 + (pos - 1) * 2;
+
+                    if (horseNumIndex < parts.length && horseInfoIndex < parts.length) {
+                        const horseNumStr = parts[horseNumIndex];
+                        const horseInfoStr = parts[horseInfoIndex];
+
+                        // 中黒（・）で分割して同着を検出
+                        const horseNums = horseNumStr.split('・').map(s => s.trim()).filter(s => s);
+                        const horseInfos = horseInfoStr.split('・').map(s => s.trim()).filter(s => s);
+
+                        // 同着の場合、複数の馬を同じ着順で登録
+                        for (let j = 0; j < Math.max(horseNums.length, horseInfos.length); j++) {
+                            const horseNum = horseNums[j] || horseNums[0];
+                            const horseInfo = horseInfos[j] || horseInfos[0];
+
+                            if (horseNum && horseInfo) {
+                                const { name: horseName, popularity } = this.parseHorseInfo(horseInfo);
+
+                                // 馬番と人気の妥当性チェック
+                                const horseNumber = parseInt(horseNum);
+                                if (isNaN(horseNumber) || horseNumber < 1 || horseNumber > 18) {
+                                    errors.push(`${i+1}行目 ${pos}着: 馬番が不正です（${horseNum}）`);
+                                    continue;
+                                }
+
+                                if (popularity !== null && (popularity < 1 || popularity > 18)) {
+                                    errors.push(`${i+1}行目 ${pos}着: 人気が不正です（${popularity}）`);
+                                }
+
+                                race.results.push({
+                                    position: pos,
+                                    number: horseNumber,
+                                    name: horseName,
+                                    popularity: popularity,
+                                    isTied: horseNums.length > 1 // 同着フラグ
+                                });
+                            }
                         }
                     }
                 }
+
+                // レース結果が1件もない場合は警告
+                if (race.results.length === 0) {
+                    errors.push(`${i+1}行目: レース結果が解析できませんでした（${race.number} ${race.name}）`);
+                }
+
+                races.push(race);
+            } catch (error) {
+                errors.push(`${i+1}行目: データ解析中にエラーが発生しました - ${error.message}`);
             }
-            
-            races.push(race);
         }
-        
+
+        // パース結果の検証
+        if (races.length === 0) {
+            const errorMsg = errors.length > 0
+                ? `レースデータを解析できませんでした。\n\n【エラー詳細】\n${errors.join('\n')}`
+                : 'レースデータを解析できませんでした。データ形式を確認してください。';
+            throw new Error(errorMsg);
+        }
+
+        // 警告がある場合はコンソールに表示
+        if (errors.length > 0) {
+            console.warn('【データ解析の警告】\n' + errors.join('\n'));
+        }
+
         return races;
     }
 

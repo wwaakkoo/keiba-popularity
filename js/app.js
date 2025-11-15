@@ -295,40 +295,61 @@ class AdvancedRaceAnalyzer {
 
         try {
             const { horseCounts, detectedRacetrack } = this.dataParser.parseHorseCountData(horseCountData);
-            
+
             // 競馬場の不一致をチェック
             if (detectedRacetrack && detectedRacetrack !== selectedRacetrack) {
                 const shouldContinue = confirm(
                     `頭立て数データから「${detectedRacetrack}」競馬場が検出されましたが、選択されているのは「${selectedRacetrack}」です。\n\n` +
                     `競馬場選択を「${detectedRacetrack}」に変更しますか？`
                 );
-                
+
                 if (shouldContinue) {
                     document.getElementById('racetrackSelect').value = detectedRacetrack;
                 }
             }
-            
+
+            // レースデータを解析（dataParserでエラーチェック済み）
             this.parsedRaces = this.dataParser.parseRaceData(rawData, selectedRacetrack, selectedDate, horseCounts);
-            
+
             // 払い戻しデータを解析
             if (payoutData) {
-                this.parsedRaces = this.dataParser.parsePayoutData(payoutData, this.parsedRaces);
+                try {
+                    this.parsedRaces = this.dataParser.parsePayoutData(payoutData, this.parsedRaces);
+                } catch (payoutError) {
+                    console.warn('払い戻しデータの解析エラー:', payoutError);
+                    Utils.showError(
+                        `払い戻しデータの解析に失敗しました。レースデータのみ読み込みます。\n\n` +
+                        `エラー: ${payoutError.message}`
+                    );
+                }
             }
-            
+
             // 全データを保持（フィルター前の元データ）
             this.allRaces = [...this.parsedRaces];
             this.filteredRaces = [...this.parsedRaces];
             this.updateDistanceFilter();
             this.showSections();
             this.applyFilters();
-            
-            const horseCountInfo = Object.keys(horseCounts).length > 0 ? 
+
+            const horseCountInfo = Object.keys(horseCounts).length > 0 ?
                 ` (頭立て数: ${Object.keys(horseCounts).length}レース分)` : '';
             const payoutInfo = payoutData ? ' (払い戻しデータあり)' : '';
-            
-            Utils.showSuccess(`${selectedRacetrack}競馬場 ${selectedDate} の${this.parsedRaces.length}レースのデータを解析しました${horseCountInfo}${payoutInfo}`);
+
+            Utils.showSuccess(
+                `${selectedRacetrack}競馬場 ${selectedDate} の${this.parsedRaces.length}レースのデータを解析しました${horseCountInfo}${payoutInfo}\n\n` +
+                `詳細はコンソール（F12）で確認できます。`
+            );
         } catch (error) {
-            Utils.showError(`データの解析中にエラーが発生しました: ${error.message}`);
+            console.error('データ解析エラー:', error);
+            Utils.showError(
+                `データの解析に失敗しました。\n\n` +
+                `${error.message}\n\n` +
+                `【確認事項】\n` +
+                `・タブ区切りのテキストデータになっているか\n` +
+                `・ヘッダー行が含まれているか\n` +
+                `・競馬場と日付が選択されているか\n\n` +
+                `詳細はコンソール（F12）で確認してください。`
+            );
         }
     }
 

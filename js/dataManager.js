@@ -51,21 +51,61 @@ class DataManager {
             
             console.log('💾 ローカルストレージから読み込み:', saved ? 'データあり' : 'データなし');
             if (saved) {
-                this.savedDataSets = JSON.parse(saved);
+                const parsedData = JSON.parse(saved);
+
+                // データ形式の検証
+                if (!Array.isArray(parsedData)) {
+                    throw new Error('保存データの形式が不正です（配列ではありません）');
+                }
+
+                this.savedDataSets = parsedData;
                 console.log('📦 読み込んだデータセット数:', this.savedDataSets.length);
             }
         } catch (error) {
             console.error('保存データの読み込みエラー:', error);
+
+            // データが破損している場合の処理
+            if (error instanceof SyntaxError) {
+                console.error('❌ LocalStorageのデータが破損しています。初期化します。');
+                try {
+                    localStorage.removeItem('raceAnalyzerData');
+                    localStorage.removeItem('horseRaceData');
+                } catch (e) {
+                    console.error('LocalStorageのクリアに失敗:', e);
+                }
+            }
+
             this.savedDataSets = [];
         }
     }
 
     saveDataToStorage() {
         try {
-            localStorage.setItem('raceAnalyzerData', JSON.stringify(this.savedDataSets));
+            const dataStr = JSON.stringify(this.savedDataSets);
+            const dataSizeKB = (new Blob([dataStr]).size / 1024).toFixed(2);
+
+            // LocalStorageの容量制限チェック（通常5-10MB）
+            if (dataSizeKB > 4096) { // 4MB以上の場合は警告
+                console.warn(`⚠️ データサイズが大きくなっています: ${dataSizeKB}KB`);
+            }
+
+            localStorage.setItem('raceAnalyzerData', dataStr);
+            console.log(`💾 データ保存成功: ${dataSizeKB}KB`);
         } catch (error) {
             console.error('データ保存エラー:', error);
-            Utils.showError('データの保存に失敗しました');
+
+            // エラーの種類に応じて詳細なメッセージを表示
+            if (error.name === 'QuotaExceededError') {
+                Utils.showError(
+                    'LocalStorageの容量が不足しています。\n' +
+                    '古いデータを削除するか、エクスポートしてから削除してください。\n' +
+                    `現在のデータ数: ${this.savedDataSets.length}件`
+                );
+            } else {
+                Utils.showError(`データの保存に失敗しました: ${error.message}`);
+            }
+
+            throw error; // 上位でエラーをハンドリングできるよう再スロー
         }
     }
 
