@@ -856,3 +856,8 @@ class DataParser {
         return lines.length;
     }
 }
+
+// Node.js環境用のエクスポート
+if (typeof module !== "undefined" && module.exports) {
+    module.exports = DataParser;
+}

@@ -1,0 +1,32 @@
+{
+  "name": "keiba-popularity-analyzer",
+  "version": "1.0.0",
+  "description": "競馬レース結果統計分析システム - Japanese Horse Racing Statistical Analysis System",
+  "main": "index.html",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:verbose": "jest --verbose"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wwaakkoo/keiba-popularity.git"
+  },
+  "keywords": [
+    "horse-racing",
+    "statistics",
+    "analysis",
+    "keiba",
+    "PWA"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/core": "^7.23.0",
+    "@babel/preset-env": "^7.23.0",
+    "babel-jest": "^29.7.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  }
+}

@@ -96,3 +96,8 @@ class Utils {
         return match ? parseInt(match[1]) : null;
     }
 }
+
+// Node.js環境用のエクスポート
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = Utils;
+}

@@ -292,3 +292,8 @@ class DataManager {
         return this.savedDataSets;
     }
 }
+
+// Node.js環境用のエクスポート
+if (typeof module !== "undefined" && module.exports) {
+    module.exports = DataManager;
+}

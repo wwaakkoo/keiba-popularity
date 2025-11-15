@@ -20,3 +20,9 @@ const CONFIG = {
         sanrentan: '3連単'
     }
 };
+
+// Node.js環境用のエクスポート
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = CONFIG;
+    global.CONFIG = CONFIG;
+}

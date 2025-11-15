@@ -694,3 +694,8 @@ class Calculator {
         resultDiv.classList.add('show');
     }
 }
+
+// Node.js環境用のエクスポート
+if (typeof module !== "undefined" && module.exports) {
+    module.exports = Calculator;
+}
