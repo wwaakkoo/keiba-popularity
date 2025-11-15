@@ -1,11 +1,19 @@
 // Service Worker for PWA
-const CACHE_NAME = 'keiba-analyzer-v1';
+const CACHE_NAME = 'keiba-analyzer-v2';
 const urlsToCache = [
   './',
   './index.html',
-  './app.js',
   './style.css',
   './manifest.json',
+  './icon-192.png',
+  './icon-512.png',
+  './js/config.js',
+  './js/utils.js',
+  './js/dataManager.js',
+  './js/dataParser.js',
+  './js/statistics.js',
+  './js/calculator.js',
+  './js/app.js',
   'https://cdn.jsdelivr.net/npm/chart.js'
 ];
 

@@ -33,21 +33,22 @@ npx serve .
 
 ### Netlifyへのデプロイ
 
-`keiba-app/` フォルダをNetlifyにデプロイ：
+ルートディレクトリをNetlifyにデプロイ：
 
 ```bash
-cd keiba-app
 netlify deploy --prod
 ```
 
-または、Netlify UIで `keiba-app/` フォルダをドラッグ&ドロップ
+または、Netlify UIでプロジェクトルートをドラッグ&ドロップ
+
+`netlify.toml` が自動的にビルド設定を適用します。
 
 ## プロジェクト構成
 
-- `/` - 開発版メインアプリケーション
-- `/keiba-app/` - デプロイ用静的サイト
-- `/js/` - JavaScriptモジュール
-- `/.kiro/` - プロジェクト仕様書
+- `/` - メインアプリケーション
+- `/js/` - JavaScriptモジュール（config, utils, dataManager, dataParser, statistics, calculator, app）
+- `/.kiro/` - プロジェクト仕様書（機能要件、設計ドキュメント）
+- `/netlify.toml` - Netlifyデプロイ設定
 
 ## ライセンス
 

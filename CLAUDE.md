@@ -8,6 +8,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **スタイル**: 簡潔な回答を心がけ、冗長な説明は避ける
 - **質問への対応**: ユーザーから質問された場合は、丁寧に詳しく解説すること
 
+## Git Workflow
+
+- **リポジトリ**: https://github.com/wwaakkoo/keiba-popularity
+- **メインブランチ**: `master` - 常に安定した状態を保つ
+- **機能開発**: 新機能開発時は必ずブランチを切って作業する
+  - ブランチ命名: `feature/機能名` (例: `feature/add-win5-analysis`)
+  - バグ修正: `fix/修正内容` (例: `fix/payout-calculation`)
+- **コミット前**: 変更内容を確認し、適切な粒度でコミットする
+- **マージとクリーンアップ**:
+  - 機能完成後、masterにマージしてプッシュ
+  - マージ後は必ずブランチを削除する
+  ```bash
+  git checkout master
+  git merge feature/your-feature
+  git push origin master
+  git branch -d feature/your-feature        # ローカルブランチ削除
+  git push origin --delete feature/your-feature  # リモートブランチ削除
+  ```
+  - または、マージ済みブランチを一括削除（推奨）:
+  ```bash
+  git cleanup  # マージ済みのローカルブランチを自動削除
+  ```
+
 ## Project Overview
 
 This is a **Japanese Horse Racing Statistical Analysis System** (競馬レース結果統計分析システム) - a Progressive Web Application for analyzing horse race results and calculating expected values for various betting types.
