@@ -48,7 +48,52 @@ netlify deploy --prod
 - `/` - メインアプリケーション
 - `/js/` - JavaScriptモジュール（config, utils, dataManager, dataParser, statistics, calculator, app）
 - `/.kiro/` - プロジェクト仕様書（機能要件、設計ドキュメント）
+- `/.github/workflows/` - GitHub Actions ワークフロー
 - `/netlify.toml` - Netlifyデプロイ設定
+
+## 開発ワークフロー
+
+### GitHub Actions
+
+このプロジェクトは GitHub Actions による自動化を導入しています：
+
+#### CI (継続的インテグレーション)
+- **トリガー**: `master` へのプッシュ、プルリクエスト
+- **実行内容**:
+  - HTML/JavaScript の構文チェック
+  - PWA ファイルの存在確認
+  - プロジェクト構造の検証
+
+#### 自動デプロイ
+- **トリガー**: `master` へのプッシュ
+- **デプロイ先**: Netlify (https://keiba-popularity.netlify.app/)
+- **必要な設定**:
+  - GitHub Secrets に `NETLIFY_AUTH_TOKEN` を設定
+  - GitHub Secrets に `NETLIFY_SITE_ID` を設定
+
+### Netlify Secrets の設定方法
+
+1. Netlify にログインして Site ID を取得:
+   ```bash
+   # Netlify CLI を使用する場合
+   netlify sites:list
+   ```
+
+2. Netlify Personal Access Token を作成:
+   - Netlify → User Settings → Applications → Personal access tokens → New access token
+
+3. GitHub Repository の Secrets に追加:
+   - Settings → Secrets and variables → Actions → New repository secret
+   - `NETLIFY_AUTH_TOKEN`: Netlify の Personal Access Token
+   - `NETLIFY_SITE_ID`: Netlify の Site ID
+
+### ブランチ戦略
+
+- `master`: 本番環境（自動デプロイ）
+- `feature/*`: 新機能開発用ブランチ
+- `fix/*`: バグ修正用ブランチ
+
+プルリクエストマージ後は自動的にブランチが削除されます。
 
 ## ライセンス
 
