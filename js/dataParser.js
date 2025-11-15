@@ -14,6 +14,9 @@ class DataParser {
             throw new Error('競馬場と日付を選択してください。');
         }
 
+        // 日付の妥当性検証
+        this.validateDate(date);
+
         const lines = rawData.split('\n');
         const races = [];
         const errors = [];
@@ -121,7 +124,106 @@ class DataParser {
             console.warn('【データ解析の警告】\n' + errors.join('\n'));
         }
 
+        // データバリデーション
+        this.validateRaces(races, errors);
+
         return races;
+    }
+
+    validateDate(dateStr) {
+        const inputDate = new Date(dateStr);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // 日付の形式チェック
+        if (isNaN(inputDate.getTime())) {
+            throw new Error(`日付の形式が不正です: ${dateStr}`);
+        }
+
+        // 未来日チェック（警告のみ）
+        if (inputDate > today) {
+            const daysAhead = Math.ceil((inputDate - today) / (1000 * 60 * 60 * 24));
+            console.warn(`⚠️ 選択された日付は未来日です（${daysAhead}日後）`);
+        }
+
+        // 過去すぎる日付チェック（JRAは1954年から）
+        const jraStartYear = 1954;
+        if (inputDate.getFullYear() < jraStartYear) {
+            throw new Error(`日付が古すぎます。JRAの開催は${jraStartYear}年以降です。`);
+        }
+
+        // 1年以上前のデータの警告
+        const oneYearAgo = new Date(today);
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+        if (inputDate < oneYearAgo) {
+            const yearsAgo = today.getFullYear() - inputDate.getFullYear();
+            console.warn(`⚠️ 選択された日付は${yearsAgo}年以上前のデータです`);
+        }
+    }
+
+    validateRaces(races, errors) {
+        // 1. レース番号の重複チェック
+        const raceNumbers = races.map(r => r.number);
+        const duplicates = raceNumbers.filter((num, index) => raceNumbers.indexOf(num) !== index);
+        if (duplicates.length > 0) {
+            errors.push(`⚠️ 重複したレース番号があります: ${[...new Set(duplicates)].join(', ')}`);
+        }
+
+        // 2. 各レースの結果の整合性チェック
+        races.forEach((race, index) => {
+            // 2-1. 馬番の重複チェック（同じレース内）
+            const horseNumbers = race.results.map(r => r.number);
+            const dupHorses = horseNumbers.filter((num, idx) => horseNumbers.indexOf(num) !== idx);
+            if (dupHorses.length > 0) {
+                errors.push(`⚠️ ${race.number} ${race.name}: 同じ馬番が複数回登場しています（${[...new Set(dupHorses)].join(', ')}番）`);
+            }
+
+            // 2-2. 人気の重複チェック（通常は重複しないはず）
+            const popularities = race.results.map(r => r.popularity).filter(p => p !== null);
+            const dupPops = popularities.filter((pop, idx) => popularities.indexOf(pop) !== idx);
+            if (dupPops.length > 0) {
+                errors.push(`⚠️ ${race.number} ${race.name}: 同じ人気が複数回登場しています（${[...new Set(dupPops)].join(', ')}人気） - 同着の可能性があります`);
+            }
+
+            // 2-3. 着順の連続性チェック（1着、2着、3着が揃っているか）
+            const positions = race.results.map(r => r.position);
+            if (!positions.includes(1)) {
+                errors.push(`⚠️ ${race.number} ${race.name}: 1着のデータがありません`);
+            }
+            if (!positions.includes(2)) {
+                errors.push(`⚠️ ${race.number} ${race.name}: 2着のデータがありません`);
+            }
+            if (!positions.includes(3)) {
+                errors.push(`⚠️ ${race.number} ${race.name}: 3着のデータがありません`);
+            }
+
+            // 2-4. 人気が null のデータがある場合の警告
+            const nullPopularities = race.results.filter(r => r.popularity === null);
+            if (nullPopularities.length > 0) {
+                errors.push(`⚠️ ${race.number} ${race.name}: 人気データがない馬が ${nullPopularities.length} 頭います`);
+            }
+
+            // 2-5. 馬番と頭立て数の整合性チェック
+            if (race.horseCount) {
+                const maxHorseNumber = Math.max(...horseNumbers);
+                if (maxHorseNumber > race.horseCount) {
+                    errors.push(`⚠️ ${race.number} ${race.name}: 馬番（${maxHorseNumber}番）が頭立て数（${race.horseCount}頭）を超えています`);
+                }
+            }
+
+            // 2-6. 人気と頭立て数の整合性チェック
+            if (race.horseCount) {
+                const maxPopularity = Math.max(...popularities.filter(p => p !== null));
+                if (maxPopularity > race.horseCount) {
+                    errors.push(`⚠️ ${race.number} ${race.name}: 人気（${maxPopularity}人気）が頭立て数（${race.horseCount}頭）を超えています`);
+                }
+            }
+        });
+
+        // 警告がある場合は再度コンソールに表示
+        if (errors.length > 0) {
+            console.warn('【データバリデーション警告】\n' + errors.join('\n'));
+        }
     }
 
     parseHorseInfo(horseInfo) {
