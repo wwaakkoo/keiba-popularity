@@ -650,3 +650,8 @@ class Statistics {
         return { patterns: stats, total };
     }
 }
+
+// Node.js環境用のエクスポート
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = Statistics;
+}
