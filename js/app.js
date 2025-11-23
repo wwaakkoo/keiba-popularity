@@ -112,12 +112,13 @@ class AdvancedRaceAnalyzer {
         // 基本操作
         document.getElementById('parseButton').addEventListener('click', () => this.parseData());
         document.getElementById('saveButton').addEventListener('click', () => this.saveCurrentData());
+        document.getElementById('updatePayoutButton').addEventListener('click', () => this.updatePayoutDataOnly());
         document.getElementById('analyzeAllButton')?.addEventListener('click', () => this.analyzeAllData());
         document.getElementById('exportDataButton')?.addEventListener('click', () => this.dataManager.exportData());
         document.getElementById('importDataButton')?.addEventListener('click', () => this.importData());
         document.getElementById('importFileInput')?.addEventListener('change', (e) => this.handleFileImport(e));
         document.getElementById('clearAllButton')?.addEventListener('click', () => this.clearAllData());
-        
+
         // 独立計算機のイベント
         this.bindCalculatorEvents();
         
@@ -126,6 +127,13 @@ class AdvancedRaceAnalyzer {
         
         // タブイベント
         this.bindTabEvents();
+
+        // 馬券人気統計の馬券種別セレクター
+        document.getElementById('ticketTypeSelector')?.addEventListener('change', () => {
+            if (this.currentTab === 'ticket-popularity') {
+                this.updateTicketPopularityAnalysis();
+            }
+        });
     }
 
     bindCalculatorEvents() {
@@ -361,9 +369,102 @@ class AdvancedRaceAnalyzer {
 
         const racetrack = document.getElementById('racetrackSelect').value;
         const date = document.getElementById('raceDate').value;
-        
+
         this.dataManager.saveCurrentData(this.parsedRaces, racetrack, date);
         this.displaySavedData();
+    }
+
+    updatePayoutDataOnly() {
+        const payoutText = document.getElementById('payoutData').value.trim();
+
+        if (!payoutText) {
+            Utils.showError('払い戻しデータを入力してください');
+            return;
+        }
+
+        const racetrack = document.getElementById('racetrackSelect').value;
+        const date = document.getElementById('raceDate').value;
+
+        if (!racetrack || !date) {
+            Utils.showError('競馬場と日付を選択してください');
+            return;
+        }
+
+        try {
+            // 既存のレースデータを取得
+            const existingRaces = this.dataManager.getRacesByDate(racetrack, date);
+
+            if (!existingRaces || existingRaces.length === 0) {
+                Utils.showError(
+                    `${racetrack} ${date}のレースデータが見つかりませんでした。\n\n` +
+                    `先に通常のデータ登録を行ってから、払い戻しデータのみ更新を実行してください。`
+                );
+                return;
+            }
+
+            console.log(`📍 既存レースデータ: ${existingRaces.length}件`);
+
+            // 払い戻しデータを上書き更新
+            const result = this.dataParser.updatePayoutDataOnly(payoutText, existingRaces);
+
+            // 矛盾チェック
+            if (result.conflicts.length > 0) {
+                const conflictMessages = result.conflicts.map(c =>
+                    `・${c.race} ${c.name || ''}: ${c.type}\n  ${c.detail}\n  期待値: ${c.expected || 'なし'}, 実際: ${c.actual || 'なし'}`
+                ).join('\n\n');
+
+                const proceed = confirm(
+                    `⚠️ 以下のデータに矛盾が見つかりました:\n\n${conflictMessages}\n\n` +
+                    `それでも更新を続行しますか？\n` +
+                    `（レース結果と払い戻しデータが異なるレース開催の可能性があります）`
+                );
+
+                if (!proceed) {
+                    console.log('❌ ユーザーによりキャンセルされました');
+                    return;
+                }
+            }
+
+            // 警告表示
+            if (result.warnings.length > 0) {
+                console.warn('⚠️ 警告:\n' + result.warnings.join('\n'));
+            }
+
+            // 更新されたデータを保存
+            this.dataManager.updateRacesByDate(racetrack, date, result.updatedRaces);
+
+            // 成功メッセージ
+            let message = `✅ 払い戻しデータを更新しました\n\n`;
+            message += `更新件数: ${result.updatedRaces.length}レース\n`;
+
+            if (result.warnings.length > 0) {
+                message += `\n⚠️ 警告: ${result.warnings.length}件\n`;
+                message += result.warnings.slice(0, 3).join('\n');
+                if (result.warnings.length > 3) {
+                    message += `\n...他${result.warnings.length - 3}件`;
+                }
+            }
+
+            if (result.conflicts.length > 0) {
+                message += `\n\n⚠️ 矛盾: ${result.conflicts.length}件（確認の上更新しました）`;
+            }
+
+            alert(message);
+
+            // 保存済みデータを再表示
+            this.displaySavedData();
+
+            // 情報ボックスを表示
+            document.getElementById('updatePayoutInfo').style.display = 'block';
+
+        } catch (error) {
+            console.error('❌ エラー:', error);
+            Utils.showError(
+                `払い戻しデータ更新エラー\n\n` +
+                `${error.message}\n\n` +
+                `詳細はコンソール（F12）で確認してください。`
+            );
+        }
     }
 
     // タブ切り替え
@@ -604,6 +705,9 @@ class AdvancedRaceAnalyzer {
                 break;
             case 'sanrentan':
                 this.updateSanrentanAnalysis();
+                break;
+            case 'ticket-popularity':
+                this.updateTicketPopularityAnalysis();
                 break;
             default:
                 console.log('⚠️ 未知のタブ:', this.currentTab);
@@ -877,10 +981,172 @@ class AdvancedRaceAnalyzer {
         console.log('📊 3連単分析開始');
         const statistics = new Statistics(this.filteredRaces);
         const sanrentanData = statistics.calculateSanrentanStats();
-        
+
         this.createSanrentanChart(sanrentanData.patterns);
         this.displaySanrentanStats(sanrentanData.patterns);
         console.log('✅ 3連単分析完了');
+    }
+
+    updateTicketPopularityAnalysis() {
+        console.log('🎫 馬券人気統計分析開始');
+        const ticketType = document.getElementById('ticketTypeSelector').value;
+        const statistics = new Statistics(this.filteredRaces);
+
+        let result;
+        let ticketTypeName;
+
+        switch (ticketType) {
+            case 'umaren':
+                result = statistics.calculateUmarenTicketPopularityStats();
+                ticketTypeName = '馬連';
+                break;
+            case 'umatan':
+                result = statistics.calculateUmatanTicketPopularityStats();
+                ticketTypeName = '馬単';
+                break;
+            case 'wide':
+                result = statistics.calculateWideTicketPopularityStats();
+                ticketTypeName = 'ワイド';
+                break;
+            case 'sanrenpuku':
+                result = statistics.calculateSanrenpukuTicketPopularityStats();
+                ticketTypeName = '3連複';
+                break;
+            case 'sanrentan':
+                result = statistics.calculateSanrentanTicketPopularityStats();
+                ticketTypeName = '3連単';
+                break;
+            default:
+                result = statistics.calculateUmarenTicketPopularityStats();
+                ticketTypeName = '馬連';
+        }
+
+        // タイトル更新
+        document.getElementById('ticketPopularityChartTitle').textContent = `${ticketTypeName}の馬券人気別期待値`;
+        document.getElementById('ticketPopularityTableTitle').textContent = `${ticketTypeName}の馬券人気別統計`;
+
+        // データが存在する人気のみ抽出
+        const validStats = [];
+        Object.keys(result.stats).forEach(pop => {
+            const stat = result.stats[pop];
+            if (stat.wins > 0) {
+                validStats.push({ ...stat, popularity: parseInt(pop) });
+            }
+        });
+
+        validStats.sort((a, b) => a.popularity - b.popularity);
+
+        if (validStats.length === 0) {
+            document.getElementById('ticketPopularityTableBody').innerHTML = `
+                <tr>
+                    <td colspan="5" style="text-align: center;">
+                        <p>⚠️ 馬券人気データがありません</p>
+                        <p>払い戻しデータに馬券人気が含まれている場合のみ表示されます</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        this.createTicketPopularityChart(validStats, ticketTypeName);
+        this.displayTicketPopularityStats(validStats);
+        console.log(`✅ ${ticketTypeName}馬券人気統計分析完了（${validStats.length}人気分）`);
+    }
+
+    createTicketPopularityChart(stats, ticketTypeName) {
+        const canvas = document.getElementById('ticketPopularityChart');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+
+        if (this.ticketPopularityChart) {
+            this.ticketPopularityChart.destroy();
+        }
+
+        // 上位30人気までに制限（見やすさのため）
+        const displayStats = stats.slice(0, 30);
+
+        const data = {
+            labels: displayStats.map(s => `${s.popularity}番人気`),
+            datasets: [{
+                label: '期待値（%）',
+                data: displayStats.map(s => s.expectedValue),
+                backgroundColor: displayStats.map(s =>
+                    s.expectedValue > 100 ? 'rgba(75, 192, 192, 0.5)' : 'rgba(255, 99, 132, 0.5)'
+                ),
+                borderColor: displayStats.map(s =>
+                    s.expectedValue > 100 ? 'rgba(75, 192, 192, 1)' : 'rgba(255, 99, 132, 1)'
+                ),
+                borderWidth: 1
+            }]
+        };
+
+        const config = {
+            type: 'bar',
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    title: {
+                        display: true,
+                        text: `${ticketTypeName}の馬券人気別期待値（上位30人気）`,
+                        font: { size: 16 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const stat = displayStats[context.dataIndex];
+                                return [
+                                    `期待値: ${stat.expectedValue.toFixed(1)}%`,
+                                    `的中数: ${stat.wins}回`,
+                                    `的中率: ${stat.winRate.toFixed(2)}%`,
+                                    `平均配当: ${stat.averagePayout.toFixed(0)}円`
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '期待値（%）'
+                        },
+                        ticks: {
+                            callback: value => value + '%'
+                        }
+                    }
+                }
+            }
+        };
+
+        this.ticketPopularityChart = new Chart(ctx, config);
+    }
+
+    displayTicketPopularityStats(stats) {
+        const tbody = document.getElementById('ticketPopularityTableBody');
+        if (!tbody) return;
+
+        let html = '';
+        stats.forEach(stat => {
+            const isPositive = stat.expectedValue > 100;
+            html += `
+                <tr class="${isPositive ? 'highlight-positive' : ''}">
+                    <td>${stat.popularity}番人気</td>
+                    <td>${stat.wins}回</td>
+                    <td>${stat.winRate.toFixed(2)}%</td>
+                    <td>${stat.averagePayout.toFixed(0)}円</td>
+                    <td class="${isPositive ? 'positive' : 'negative'}">${stat.expectedValue.toFixed(1)}%</td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
     }
 
     // 統計表示メソッド

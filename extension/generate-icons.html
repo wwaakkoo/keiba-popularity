@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>アイコン生成ツール</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 { color: #667eea; }
+        .icon-preview {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        canvas {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .info {
+            background: #f0f4ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏇 拡張機能アイコン生成ツール</h1>
+
+    <div class="info">
+        <h3>使い方</h3>
+        <ol>
+            <li>各サイズのアイコンプレビューが下に表示されます</li>
+            <li>「ダウンロード」ボタンをクリックして各サイズのアイコンを保存</li>
+            <li>保存したファイルを <code>extension/</code> フォルダに配置</li>
+        </ol>
+    </div>
+
+    <div class="icon-preview">
+        <div>
+            <h3>16x16</h3>
+            <canvas id="canvas16" width="16" height="16"></canvas><br>
+            <button onclick="downloadIcon(16)">ダウンロード</button>
+        </div>
+        <div>
+            <h3>48x48</h3>
+            <canvas id="canvas48" width="48" height="48"></canvas><br>
+            <button onclick="downloadIcon(48)">ダウンロード</button>
+        </div>
+        <div>
+            <h3>128x128</h3>
+            <canvas id="canvas128" width="128" height="128"></canvas><br>
+            <button onclick="downloadIcon(128)">ダウンロード</button>
+        </div>
+    </div>
+
+    <script>
+        // SVGデータ
+        const svgData = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+            <rect width="128" height="128" fill="#667eea" rx="16"/>
+            <path d="M45 85 L45 70 Q48 50, 55 45 Q60 42, 65 43 L70 40 Q72 38, 74 40 L78 43 Q82 44, 85 48 Q88 55, 88 65 L88 85 M88 65 Q92 62, 95 64 L98 85"
+                  fill="white" stroke="white" stroke-width="2"/>
+            <circle cx="95" cy="35" r="18" fill="white"/>
+            <text x="95" y="42" font-family="Arial" font-size="20" font-weight="bold" text-anchor="middle" fill="#667eea">¥</text>
+        </svg>`;
+
+        // 各サイズのキャンバスに描画
+        function drawIcon(size) {
+            const canvas = document.getElementById(`canvas${size}`);
+            const ctx = canvas.getContext('2d');
+
+            const img = new Image();
+            const svg = new Blob([svgData], {type: 'image/svg+xml'});
+            const url = URL.createObjectURL(svg);
+
+            img.onload = function() {
+                ctx.drawImage(img, 0, 0, size, size);
+                URL.revokeObjectURL(url);
+            };
+
+            img.src = url;
+        }
+
+        // アイコンをダウンロード
+        function downloadIcon(size) {
+            const canvas = document.getElementById(`canvas${size}`);
+            const link = document.createElement('a');
+            link.download = `icon${size}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // ページ読み込み時に全サイズ描画
+        window.onload = function() {
+            drawIcon(16);
+            drawIcon(48);
+            drawIcon(128);
+        };
+    </script>
+</body>
+</html>

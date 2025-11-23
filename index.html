@@ -128,6 +128,18 @@
                             <button id="saveButton" class="btn btn--secondary">
                                 💾 データを保存
                             </button>
+                            <button id="updatePayoutButton" class="btn btn--outline">
+                                🔄 払い戻しデータのみ更新
+                            </button>
+                        </div>
+                        <div id="updatePayoutInfo" class="info-box info-box--info" style="display: none; margin-top: 1rem;">
+                            <p><strong>💡 払い戻しデータのみ更新モード</strong></p>
+                            <p>既存のレースデータ（レース名、着順など）を保持したまま、払い戻しデータと馬券人気のみを上書き更新します。</p>
+                            <ul>
+                                <li>過去に登録したレースデータに馬券人気を追加したい場合に使用</li>
+                                <li>払い戻しデータ欄にテキストを貼り付けて実行</li>
+                                <li>レース結果と払い戻しデータに矛盾がある場合は警告が表示されます</li>
+                            </ul>
                         </div>
                     </div>
                 </div>
@@ -245,6 +257,7 @@
                             <button class="tab-btn" data-tab="wide">ワイド期待値</button>
                             <button class="tab-btn" data-tab="sanrenpuku">3連複期待値</button>
                             <button class="tab-btn" data-tab="sanrentan">3連単期待値</button>
+                            <button class="tab-btn" data-tab="ticket-popularity">🎫 馬券人気統計</button>
                         </div>
                     </div>
                     <div class="card__body">
@@ -824,6 +837,65 @@
                                     <button id="calculateSanrentan" class="btn btn--primary btn--sm">計算</button>
                                 </div>
                                 <div id="sanrentanResult" class="calculator-result"></div>
+                            </div>
+                        </div>
+
+                        <!-- 馬券人気統計タブ -->
+                        <div class="tab-content" id="ticket-popularity-tab">
+                            <div class="ticket-popularity-section">
+                                <div class="info-box info-box--info">
+                                    <p><strong>🎫 馬券人気統計について</strong></p>
+                                    <p>各馬券の組み合わせ自体の人気（オッズ順位）による的中率と期待値を表示します。</p>
+                                    <p>例：ワイド1-3番の組み合わせが28番人気の場合、「28番人気の馬券」として集計されます。</p>
+                                </div>
+
+                                <div class="ticket-type-selector">
+                                    <label class="form-label">馬券種別を選択</label>
+                                    <select id="ticketTypeSelector" class="form-control">
+                                        <option value="umaren">馬連</option>
+                                        <option value="umatan">馬単</option>
+                                        <option value="wide">ワイド</option>
+                                        <option value="sanrenpuku">3連複</option>
+                                        <option value="sanrentan">3連単</option>
+                                    </select>
+                                </div>
+
+                                <div class="analysis-grid">
+                                    <div class="chart-container">
+                                        <h4 id="ticketPopularityChartTitle">馬連の馬券人気別期待値</h4>
+                                        <div class="chart-wrapper" style="position: relative; height: 400px;">
+                                            <canvas id="ticketPopularityChart"></canvas>
+                                        </div>
+                                    </div>
+
+                                    <div class="table-container">
+                                        <h4 id="ticketPopularityTableTitle">馬連の馬券人気別統計</h4>
+                                        <div class="table-wrapper">
+                                            <table id="ticketPopularityTable" class="stats-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>馬券人気</th>
+                                                        <th>的中数</th>
+                                                        <th>的中率</th>
+                                                        <th>平均配当</th>
+                                                        <th>期待値</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="ticketPopularityTableBody">
+                                                    <!-- データがJavaScriptで挿入されます -->
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="info-box info-box--warning">
+                                    <p><strong>⚠️ 注意事項</strong></p>
+                                    <ul>
+                                        <li>払い戻しデータに馬券人気が含まれている場合のみ表示されます</li>
+                                        <li>データが不足している人気順位は表示されません</li>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
                     </div>

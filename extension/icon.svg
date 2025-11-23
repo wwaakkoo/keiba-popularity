@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Background -->
+  <rect width="128" height="128" fill="#667eea" rx="16"/>
+
+  <!-- Horse silhouette -->
+  <path d="M45 85 L45 70 Q48 50, 55 45 Q60 42, 65 43 L70 40 Q72 38, 74 40 L78 43 Q82 44, 85 48 Q88 55, 88 65 L88 85 M88 65 Q92 62, 95 64 L98 85"
+        fill="white" stroke="white" stroke-width="2"/>
+
+  <!-- Racing number circle -->
+  <circle cx="95" cy="35" r="18" fill="white"/>
+  <text x="95" y="42" font-family="Arial" font-size="20" font-weight="bold" text-anchor="middle" fill="#667eea">¥</text>
+</svg>

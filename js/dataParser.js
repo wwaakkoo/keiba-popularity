@@ -488,17 +488,19 @@ class DataParser {
             for (let i = 0; i < combinations.length; i++) {
                 const horseNumbers = combinations[i];
                 const payout = payouts[i] || 0;
-                
+                const ticketPopularity = popularities[i] || null;
+
                 // 人気パターンをレース結果から取得
                 const popularityPattern = this.getPopularityPatternFromRace(race, horseNumbers, true);
-                
+
                 race.payouts.umaren.push({
                     combination: horseNumbers,
                     popularityPattern,
+                    ticketPopularity,
                     payout
                 });
-                
-                console.log(`  馬連: ${horseNumbers.join('-')} ${payout}円 (${popularityPattern})`);
+
+                console.log(`  馬連: ${horseNumbers.join('-')} ${payout}円 (馬:${popularityPattern}, 券:${ticketPopularity}人気)`);
             }
         } catch (error) {
             console.warn('馬連データ解析エラー:', error);
@@ -561,17 +563,19 @@ class DataParser {
             for (let i = 0; i < combinations.length; i++) {
                 const horseNumbers = combinations[i];
                 const payout = payouts[i] || 0;
-                
+                const ticketPopularity = popularities[i] || null;
+
                 // 人気パターンをレース結果から取得（馬単は順序重要なのでソートしない）
                 const popularityPattern = this.getPopularityPatternFromRace(race, horseNumbers, false);
-                
+
                 race.payouts.umatan.push({
                     combination: horseNumbers,
                     popularityPattern,
+                    ticketPopularity,
                     payout
                 });
-                
-                console.log(`  馬単: ${horseNumbers.join('→')} ${payout}円 (${popularityPattern})`);
+
+                console.log(`  馬単: ${horseNumbers.join('→')} ${payout}円 (馬:${popularityPattern}, 券:${ticketPopularity}人気)`);
             }
         } catch (error) {
             console.warn('馬単データ解析エラー:', error);
@@ -634,17 +638,19 @@ class DataParser {
             for (let i = 0; i < combinations.length; i++) {
                 const horseNumbers = combinations[i];
                 const payout = payouts[i] || 0;
-                
+                const ticketPopularity = popularities[i] || null;
+
                 // 人気パターンをレース結果から取得（ワイドはソート）
                 const popularityPattern = this.getPopularityPatternFromRace(race, horseNumbers, true);
-                
+
                 race.payouts.wide.push({
                     combination: horseNumbers,
                     popularityPattern,
+                    ticketPopularity,
                     payout
                 });
-                
-                console.log(`  ワイド: ${horseNumbers.join('-')} ${payout}円 (${popularityPattern})`);
+
+                console.log(`  ワイド: ${horseNumbers.join('-')} ${payout}円 (馬:${popularityPattern}, 券:${ticketPopularity}人気)`);
             }
         } catch (error) {
             console.warn('ワイドデータ解析エラー:', error);
@@ -707,17 +713,19 @@ class DataParser {
             for (let i = 0; i < combinations.length; i++) {
                 const horseNumbers = combinations[i];
                 const payout = payouts[i] || 0;
-                
+                const ticketPopularity = popularities[i] || null;
+
                 // 人気パターンをレース結果から取得（3連複はソート）
                 const popularityPattern = this.getPopularityPatternFromRace(race, horseNumbers, true);
-                
+
                 race.payouts.sanrenpuku.push({
                     combination: horseNumbers,
                     popularityPattern,
+                    ticketPopularity,
                     payout
                 });
-                
-                console.log(`  3連複: ${horseNumbers.join('-')} ${payout}円 (${popularityPattern})`);
+
+                console.log(`  3連複: ${horseNumbers.join('-')} ${payout}円 (馬:${popularityPattern}, 券:${ticketPopularity}人気)`);
             }
         } catch (error) {
             console.warn('3連複データ解析エラー:', error);
@@ -780,17 +788,19 @@ class DataParser {
             for (let i = 0; i < combinations.length; i++) {
                 const horseNumbers = combinations[i];
                 const payout = payouts[i] || 0;
-                
+                const ticketPopularity = popularities[i] || null;
+
                 // 人気パターンをレース結果から取得（3連単は順序重要なのでソートしない）
                 const popularityPattern = this.getPopularityPatternFromRace(race, horseNumbers, false);
-                
+
                 race.payouts.sanrentan.push({
                     combination: horseNumbers,
                     popularityPattern,
+                    ticketPopularity,
                     payout
                 });
-                
-                console.log(`  3連単: ${horseNumbers.join('→')} ${payout}円 (${popularityPattern})`);
+
+                console.log(`  3連単: ${horseNumbers.join('→')} ${payout}円 (馬:${popularityPattern}, 券:${ticketPopularity}人気)`);
             }
         } catch (error) {
             console.warn('3連単データ解析エラー:', error);
@@ -854,5 +864,207 @@ class DataParser {
             }
         }
         return lines.length;
+    }
+
+    /**
+     * 既存レースに払い戻しデータのみを上書き更新する
+     * @param {string} payoutText - 払い戻しデータテキスト
+     * @param {Array} existingRaces - 既存のレースデータ
+     * @returns {Object} { updatedRaces, warnings, conflicts }
+     */
+    updatePayoutDataOnly(payoutText, existingRaces) {
+        if (!payoutText || !payoutText.trim()) {
+            throw new Error('払い戻しデータが空です');
+        }
+
+        if (!existingRaces || existingRaces.length === 0) {
+            throw new Error('既存のレースデータがありません');
+        }
+
+        console.log('💰 払い戻しデータ上書き更新開始');
+
+        // 既存レースのクローンを作成（元データを保持）
+        const updatedRaces = JSON.parse(JSON.stringify(existingRaces));
+        const warnings = [];
+        const conflicts = [];
+
+        // 新しい払い戻しデータを一時的なレース配列として解析
+        const tempRaces = updatedRaces.map(race => ({
+            ...race,
+            payouts: {} // 払い戻しデータをリセット
+        }));
+
+        // 払い戻しデータを解析して tempRaces に格納
+        this.parsePayoutData(payoutText, tempRaces);
+
+        // レースごとに比較して上書き
+        tempRaces.forEach((tempRace, index) => {
+            const originalRace = existingRaces[index];
+            const updatedRace = updatedRaces[index];
+
+            // 払い戻しデータが存在するかチェック
+            if (!tempRace.payouts || Object.keys(tempRace.payouts).length === 0) {
+                warnings.push(`${tempRace.number} ${tempRace.name}: 払い戻しデータが見つかりませんでした`);
+                return;
+            }
+
+            // レース基本情報の一致確認（競馬場、日付、レース番号）
+            if (tempRace.racetrack !== originalRace.racetrack ||
+                tempRace.date !== originalRace.date ||
+                tempRace.number !== originalRace.number) {
+                conflicts.push({
+                    race: tempRace.number,
+                    type: '基本情報不一致',
+                    detail: `競馬場・日付・レース番号が一致しません`
+                });
+                return;
+            }
+
+            // 着順結果との整合性チェック
+            const raceConflicts = this.validatePayoutConsistency(tempRace, originalRace);
+            if (raceConflicts.length > 0) {
+                conflicts.push(...raceConflicts.map(c => ({
+                    race: tempRace.number,
+                    name: tempRace.name,
+                    ...c
+                })));
+            }
+
+            // 払い戻しデータを上書き
+            updatedRace.payouts = tempRace.payouts;
+            console.log(`✅ ${updatedRace.number} ${updatedRace.name}: 払い戻しデータ更新`);
+        });
+
+        console.log('✅ 払い戻しデータ上書き完了');
+
+        return {
+            updatedRaces,
+            warnings,
+            conflicts
+        };
+    }
+
+    /**
+     * 払い戻しデータとレース結果の整合性をチェック
+     */
+    validatePayoutConsistency(tempRace, originalRace) {
+        const conflicts = [];
+
+        // 単勝の馬番チェック
+        if (tempRace.payouts.tansho) {
+            const tanshoHorse = tempRace.payouts.tansho.horseNumber;
+            const winner = originalRace.results.find(r => r.position === 1);
+
+            if (winner && winner.number !== tanshoHorse) {
+                conflicts.push({
+                    type: '単勝不一致',
+                    detail: `単勝馬番${tanshoHorse}が1着馬番${winner.number}と一致しません`,
+                    expected: winner.number,
+                    actual: tanshoHorse
+                });
+            }
+        }
+
+        // 馬連の組み合わせチェック
+        if (tempRace.payouts.umaren && tempRace.payouts.umaren.length > 0) {
+            const first = originalRace.results.find(r => r.position === 1);
+            const second = originalRace.results.find(r => r.position === 2);
+
+            if (first && second) {
+                const expectedCombination = [first.number, second.number].sort((a, b) => a - b);
+
+                tempRace.payouts.umaren.forEach(umaren => {
+                    const actualCombination = [...umaren.combination].sort((a, b) => a - b);
+
+                    if (actualCombination[0] !== expectedCombination[0] ||
+                        actualCombination[1] !== expectedCombination[1]) {
+                        conflicts.push({
+                            type: '馬連不一致',
+                            detail: `馬連${actualCombination.join('-')}が1-2着${expectedCombination.join('-')}と一致しません`,
+                            expected: expectedCombination.join('-'),
+                            actual: actualCombination.join('-')
+                        });
+                    }
+                });
+            }
+        }
+
+        // 馬単の組み合わせチェック
+        if (tempRace.payouts.umatan && tempRace.payouts.umatan.length > 0) {
+            const first = originalRace.results.find(r => r.position === 1);
+            const second = originalRace.results.find(r => r.position === 2);
+
+            if (first && second) {
+                const expectedCombination = [first.number, second.number];
+
+                tempRace.payouts.umatan.forEach(umatan => {
+                    const actualCombination = umatan.combination;
+
+                    if (actualCombination[0] !== expectedCombination[0] ||
+                        actualCombination[1] !== expectedCombination[1]) {
+                        conflicts.push({
+                            type: '馬単不一致',
+                            detail: `馬単${actualCombination.join('→')}が1→2着${expectedCombination.join('→')}と一致しません`,
+                            expected: expectedCombination.join('→'),
+                            actual: actualCombination.join('→')
+                        });
+                    }
+                });
+            }
+        }
+
+        // 3連複の組み合わせチェック
+        if (tempRace.payouts.sanrenpuku && tempRace.payouts.sanrenpuku.length > 0) {
+            const first = originalRace.results.find(r => r.position === 1);
+            const second = originalRace.results.find(r => r.position === 2);
+            const third = originalRace.results.find(r => r.position === 3);
+
+            if (first && second && third) {
+                const expectedCombination = [first.number, second.number, third.number].sort((a, b) => a - b);
+
+                tempRace.payouts.sanrenpuku.forEach(sanrenpuku => {
+                    const actualCombination = [...sanrenpuku.combination].sort((a, b) => a - b);
+
+                    if (actualCombination[0] !== expectedCombination[0] ||
+                        actualCombination[1] !== expectedCombination[1] ||
+                        actualCombination[2] !== expectedCombination[2]) {
+                        conflicts.push({
+                            type: '3連複不一致',
+                            detail: `3連複${actualCombination.join('-')}が1-2-3着${expectedCombination.join('-')}と一致しません`,
+                            expected: expectedCombination.join('-'),
+                            actual: actualCombination.join('-')
+                        });
+                    }
+                });
+            }
+        }
+
+        // 3連単の組み合わせチェック
+        if (tempRace.payouts.sanrentan && tempRace.payouts.sanrentan.length > 0) {
+            const first = originalRace.results.find(r => r.position === 1);
+            const second = originalRace.results.find(r => r.position === 2);
+            const third = originalRace.results.find(r => r.position === 3);
+
+            if (first && second && third) {
+                const expectedCombination = [first.number, second.number, third.number];
+
+                tempRace.payouts.sanrentan.forEach(sanrentan => {
+                    const actualCombination = sanrentan.combination;
+
+                    if (actualCombination[0] !== expectedCombination[0] ||
+                        actualCombination[1] !== expectedCombination[1] ||
+                        actualCombination[2] !== expectedCombination[2]) {
+                        conflicts.push({
+                            type: '3連単不一致',
+                            detail: `3連単${actualCombination.join('→')}が1→2→3着${expectedCombination.join('→')}と一致しません`,
+                            expected: expectedCombination.join('→'),
+                            actual: actualCombination.join('→')
+                        });
+                    }
+                });
+            }
+        }
+
+        return conflicts;
     }
 }

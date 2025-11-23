@@ -291,4 +291,36 @@ class DataManager {
     getDataSets() {
         return this.savedDataSets;
     }
+
+    /**
+     * 特定の日付のレースデータを取得
+     */
+    getRacesByDate(racetrack, date) {
+        const dataSet = this.savedDataSets.find(ds =>
+            ds.racetrack === racetrack && ds.date === date
+        );
+        return dataSet ? dataSet.races : null;
+    }
+
+    /**
+     * 特定の日付のレースデータを更新
+     */
+    updateRacesByDate(racetrack, date, updatedRaces) {
+        const dataSetIndex = this.savedDataSets.findIndex(ds =>
+            ds.racetrack === racetrack && ds.date === date
+        );
+
+        if (dataSetIndex === -1) {
+            throw new Error(`${racetrack} ${date}のデータが見つかりません`);
+        }
+
+        // レースデータを更新
+        this.savedDataSets[dataSetIndex].races = updatedRaces;
+        this.savedDataSets[dataSetIndex].updatedAt = new Date().toISOString();
+
+        // LocalStorageに保存
+        this.saveDataToStorage();
+
+        console.log(`✅ ${racetrack} ${date}のデータを更新しました（${updatedRaces.length}レース）`);
+    }
 }

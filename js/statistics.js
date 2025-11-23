@@ -649,4 +649,286 @@ class Statistics {
 
         return { patterns: stats, total };
     }
+
+    // 馬券自体の人気による統計（馬連）
+    calculateUmarenTicketPopularityStats() {
+        const stats = {};
+        let totalWithPopularity = 0;
+
+        // 初期化（1-300人気まで対応）
+        for (let i = 1; i <= 300; i++) {
+            stats[i] = {
+                total: 0,
+                wins: 0,
+                payouts: [],
+                winRate: 0,
+                averagePayout: 0,
+                expectedValue: 0,
+                popularity: i.toString(),
+                payoutCount: 0,
+                minPayout: 0,
+                maxPayout: 0
+            };
+        }
+
+        this.filteredRaces.forEach(race => {
+            if (race.payouts && race.payouts.umaren && Array.isArray(race.payouts.umaren)) {
+                race.payouts.umaren.forEach(umaren => {
+                    const pop = umaren.ticketPopularity;
+                    if (pop && pop >= 1 && pop <= 300) {
+                        stats[pop].wins++;
+                        stats[pop].payouts.push(umaren.payout);
+                        totalWithPopularity++;
+                    }
+                });
+            }
+        });
+
+        // 統計値を計算
+        for (let i = 1; i <= 300; i++) {
+            stats[i].total = totalWithPopularity;
+            stats[i].payoutCount = stats[i].payouts.length;
+
+            if (stats[i].total > 0) {
+                stats[i].winRate = (stats[i].wins / stats[i].total) * 100;
+
+                if (stats[i].payouts.length > 0) {
+                    const sum = stats[i].payouts.reduce((a, b) => a + b, 0);
+                    stats[i].averagePayout = sum / stats[i].payouts.length;
+                    stats[i].minPayout = Math.min(...stats[i].payouts);
+                    stats[i].maxPayout = Math.max(...stats[i].payouts);
+                } else {
+                    stats[i].averagePayout = 100;
+                }
+
+                stats[i].expectedValue = (stats[i].winRate * stats[i].averagePayout) / 100;
+            }
+        }
+
+        return { stats, totalWithPopularity };
+    }
+
+    // 馬券自体の人気による統計（馬単）
+    calculateUmatanTicketPopularityStats() {
+        const stats = {};
+        let totalWithPopularity = 0;
+
+        for (let i = 1; i <= 300; i++) {
+            stats[i] = {
+                total: 0,
+                wins: 0,
+                payouts: [],
+                winRate: 0,
+                averagePayout: 0,
+                expectedValue: 0,
+                popularity: i.toString(),
+                payoutCount: 0,
+                minPayout: 0,
+                maxPayout: 0
+            };
+        }
+
+        this.filteredRaces.forEach(race => {
+            if (race.payouts && race.payouts.umatan && Array.isArray(race.payouts.umatan)) {
+                race.payouts.umatan.forEach(umatan => {
+                    const pop = umatan.ticketPopularity;
+                    if (pop && pop >= 1 && pop <= 300) {
+                        stats[pop].wins++;
+                        stats[pop].payouts.push(umatan.payout);
+                        totalWithPopularity++;
+                    }
+                });
+            }
+        });
+
+        for (let i = 1; i <= 300; i++) {
+            stats[i].total = totalWithPopularity;
+            stats[i].payoutCount = stats[i].payouts.length;
+
+            if (stats[i].total > 0) {
+                stats[i].winRate = (stats[i].wins / stats[i].total) * 100;
+
+                if (stats[i].payouts.length > 0) {
+                    const sum = stats[i].payouts.reduce((a, b) => a + b, 0);
+                    stats[i].averagePayout = sum / stats[i].payouts.length;
+                    stats[i].minPayout = Math.min(...stats[i].payouts);
+                    stats[i].maxPayout = Math.max(...stats[i].payouts);
+                } else {
+                    stats[i].averagePayout = 100;
+                }
+
+                stats[i].expectedValue = (stats[i].winRate * stats[i].averagePayout) / 100;
+            }
+        }
+
+        return { stats, totalWithPopularity };
+    }
+
+    // 馬券自体の人気による統計（ワイド）
+    calculateWideTicketPopularityStats() {
+        const stats = {};
+        let totalWithPopularity = 0;
+
+        for (let i = 1; i <= 300; i++) {
+            stats[i] = {
+                total: 0,
+                wins: 0,
+                payouts: [],
+                winRate: 0,
+                averagePayout: 0,
+                expectedValue: 0,
+                popularity: i.toString(),
+                payoutCount: 0,
+                minPayout: 0,
+                maxPayout: 0
+            };
+        }
+
+        this.filteredRaces.forEach(race => {
+            if (race.payouts && race.payouts.wide && Array.isArray(race.payouts.wide)) {
+                race.payouts.wide.forEach(wide => {
+                    const pop = wide.ticketPopularity;
+                    if (pop && pop >= 1 && pop <= 300) {
+                        stats[pop].wins++;
+                        stats[pop].payouts.push(wide.payout);
+                        totalWithPopularity++;
+                    }
+                });
+            }
+        });
+
+        for (let i = 1; i <= 300; i++) {
+            stats[i].total = totalWithPopularity;
+            stats[i].payoutCount = stats[i].payouts.length;
+
+            if (stats[i].total > 0) {
+                stats[i].winRate = (stats[i].wins / stats[i].total) * 100;
+
+                if (stats[i].payouts.length > 0) {
+                    const sum = stats[i].payouts.reduce((a, b) => a + b, 0);
+                    stats[i].averagePayout = sum / stats[i].payouts.length;
+                    stats[i].minPayout = Math.min(...stats[i].payouts);
+                    stats[i].maxPayout = Math.max(...stats[i].payouts);
+                } else {
+                    stats[i].averagePayout = 100;
+                }
+
+                stats[i].expectedValue = (stats[i].winRate * stats[i].averagePayout) / 100;
+            }
+        }
+
+        return { stats, totalWithPopularity };
+    }
+
+    // 馬券自体の人気による統計（3連複）
+    calculateSanrenpukuTicketPopularityStats() {
+        const stats = {};
+        let totalWithPopularity = 0;
+
+        for (let i = 1; i <= 1000; i++) {
+            stats[i] = {
+                total: 0,
+                wins: 0,
+                payouts: [],
+                winRate: 0,
+                averagePayout: 0,
+                expectedValue: 0,
+                popularity: i.toString(),
+                payoutCount: 0,
+                minPayout: 0,
+                maxPayout: 0
+            };
+        }
+
+        this.filteredRaces.forEach(race => {
+            if (race.payouts && race.payouts.sanrenpuku && Array.isArray(race.payouts.sanrenpuku)) {
+                race.payouts.sanrenpuku.forEach(sanrenpuku => {
+                    const pop = sanrenpuku.ticketPopularity;
+                    if (pop && pop >= 1 && pop <= 1000) {
+                        stats[pop].wins++;
+                        stats[pop].payouts.push(sanrenpuku.payout);
+                        totalWithPopularity++;
+                    }
+                });
+            }
+        });
+
+        for (let i = 1; i <= 1000; i++) {
+            stats[i].total = totalWithPopularity;
+            stats[i].payoutCount = stats[i].payouts.length;
+
+            if (stats[i].total > 0) {
+                stats[i].winRate = (stats[i].wins / stats[i].total) * 100;
+
+                if (stats[i].payouts.length > 0) {
+                    const sum = stats[i].payouts.reduce((a, b) => a + b, 0);
+                    stats[i].averagePayout = sum / stats[i].payouts.length;
+                    stats[i].minPayout = Math.min(...stats[i].payouts);
+                    stats[i].maxPayout = Math.max(...stats[i].payouts);
+                } else {
+                    stats[i].averagePayout = 100;
+                }
+
+                stats[i].expectedValue = (stats[i].winRate * stats[i].averagePayout) / 100;
+            }
+        }
+
+        return { stats, totalWithPopularity };
+    }
+
+    // 馬券自体の人気による統計（3連単）
+    calculateSanrentanTicketPopularityStats() {
+        const stats = {};
+        let totalWithPopularity = 0;
+
+        for (let i = 1; i <= 2000; i++) {
+            stats[i] = {
+                total: 0,
+                wins: 0,
+                payouts: [],
+                winRate: 0,
+                averagePayout: 0,
+                expectedValue: 0,
+                popularity: i.toString(),
+                payoutCount: 0,
+                minPayout: 0,
+                maxPayout: 0
+            };
+        }
+
+        this.filteredRaces.forEach(race => {
+            if (race.payouts && race.payouts.sanrentan && Array.isArray(race.payouts.sanrentan)) {
+                race.payouts.sanrentan.forEach(sanrentan => {
+                    const pop = sanrentan.ticketPopularity;
+                    if (pop && pop >= 1 && pop <= 2000) {
+                        stats[pop].wins++;
+                        stats[pop].payouts.push(sanrentan.payout);
+                        totalWithPopularity++;
+                    }
+                });
+            }
+        });
+
+        for (let i = 1; i <= 2000; i++) {
+            stats[i].total = totalWithPopularity;
+            stats[i].payoutCount = stats[i].payouts.length;
+
+            if (stats[i].total > 0) {
+                stats[i].winRate = (stats[i].wins / stats[i].total) * 100;
+
+                if (stats[i].payouts.length > 0) {
+                    const sum = stats[i].payouts.reduce((a, b) => a + b, 0);
+                    stats[i].averagePayout = sum / stats[i].payouts.length;
+                    stats[i].minPayout = Math.min(...stats[i].payouts);
+                    stats[i].maxPayout = Math.max(...stats[i].payouts);
+                } else {
+                    stats[i].averagePayout = 100;
+                }
+
+                stats[i].expectedValue = (stats[i].winRate * stats[i].averagePayout) / 100;
+            }
+        }
+
+        return { stats, totalWithPopularity };
+    }
 }

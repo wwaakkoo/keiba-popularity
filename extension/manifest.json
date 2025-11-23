@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "netkeiba 払い戻しデータ取得",
+  "version": "1.4.0",
+  "description": "netkeiba.comのレース結果ページから払い戻しデータを抽出し、競馬統計アプリ用のテキスト形式に変換します",
+  "permissions": [
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://race.netkeiba.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://race.netkeiba.com/race/result.html*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

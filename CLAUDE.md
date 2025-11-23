@@ -46,6 +46,7 @@ The application is built as a client-side only web application with no backend, 
 - **Data Storage**: LocalStorage API
 - **PWA**: Service Worker (sw.js) for offline support
 - **Deployment**: Netlify (static hosting)
+- **Browser Extension**: Chrome Extension (Manifest V3) for data extraction from netkeiba.com
 
 ### Core JavaScript Modules
 
@@ -218,4 +219,43 @@ The Service Worker (`sw.js`) enables offline support. Update the cache version i
 - `/` - Main application (current/active version)
 - `/keiba-app/` - Appears to be an older or alternative version
 - `/js/` - JavaScript modules
+- `/extension/` - Chrome extension for data extraction from netkeiba.com
 - `/.kiro/` - Project specification documents
+
+## Chrome Extension
+
+### Purpose
+The Chrome extension (`/extension/`) automates the extraction of payout data from netkeiba.com race result pages and converts it to the format required by the main application.
+
+### Structure
+- `manifest.json` - Extension configuration (Manifest V3)
+- `content.js` - Extracts payout data from netkeiba.com pages
+- `popup.html` - Extension UI
+- `popup.js` - Data conversion and clipboard functionality
+- `generate-icons.html` - Tool to generate icon files from SVG
+
+### Usage
+1. Install the extension in Chrome (load unpacked from `/extension/` folder)
+2. Navigate to a netkeiba.com race result page
+3. Click the extension icon
+4. Click "データを取得" to extract payout data
+5. Click "クリップボードにコピー" to copy formatted text
+6. Paste into the main application's payout data field
+
+### Output Format
+The extension converts netkeiba.com's HTML structure to the text format expected by `dataParser.js`:
+```
+1R
+単勝
+7
+110
+1人気
+複勝
+...
+```
+
+### Technical Notes
+- Uses `chrome.tabs.sendMessage` for communication between popup and content script
+- Parses definition lists (`<dl>/<dt>/<dd>`) from netkeiba.com's HTML
+- Handles multiple ticket types: 単勝, 複勝, 馬連, 馬単, ワイド, 3連複, 3連単
+- Local operation only - respects netkeiba.com's terms of service
