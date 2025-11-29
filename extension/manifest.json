@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "netkeiba 払い戻しデータ取得",
-  "version": "1.4.0",
-  "description": "netkeiba.comのレース結果ページから払い戻しデータを抽出し、競馬統計アプリ用のテキスト形式に変換します",
+  "version": "1.5.0",
+  "description": "netkeiba.comのレース結果ページから払い戻しデータと出走馬情報を抽出し、競馬統計アプリ用のテキスト形式に変換します",
   "permissions": [
     "activeTab",
     "scripting"

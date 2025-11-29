@@ -27,6 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error('このページはnetkeiba.comのレース結果ページではありません');
             }
 
+            // content scriptが読み込まれるまで少し待機
+            await new Promise(resolve => setTimeout(resolve, 100));
+
             // content.jsにメッセージを送信
             const response = await chrome.tabs.sendMessage(tab.id, { action: 'extractData' });
 
@@ -200,6 +203,20 @@ function convertToAppFormat(data) {
 
     // レース番号
     lines.push(`${data.raceNumber}R`);
+
+    // 出走馬情報を追加（コメント形式）
+    if (data.runners && data.runners.length > 0) {
+        lines.push(`# 出走馬: ${data.runners.join(',')}`);
+        console.log(`📋 出走馬情報を追加: ${data.runners.join(',')}`);
+    }
+    if (data.canceledHorses && data.canceledHorses.length > 0) {
+        lines.push(`# 取消馬: ${data.canceledHorses.join(',')}`);
+        console.log(`🚫 取消馬情報を追加: ${data.canceledHorses.join(',')}`);
+    }
+    if (data.horseCount) {
+        lines.push(`# 登録頭数: ${data.horseCount}`);
+        console.log(`📊 登録頭数を追加: ${data.horseCount}`);
+    }
 
     // 各券種を変換
     if (data.tansho) {

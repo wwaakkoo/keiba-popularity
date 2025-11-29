@@ -302,19 +302,60 @@ class DataParser {
 
         console.log('💰 払い戻しデータ解析開始');
         const lines = payoutText.split('\n').map(line => line.trim()).filter(line => line);
-        
+
         let currentRaceNumber = null;
         let currentTicketType = null;
         let lineIndex = 0;
-        
+
         while (lineIndex < lines.length) {
             const line = lines[lineIndex];
-            
+
             // レース番号を検出（例: "1R", "2R"）
             const raceMatch = line.match(/^(\d+)R$/);
             if (raceMatch) {
                 currentRaceNumber = parseInt(raceMatch[1]);
                 console.log(`📍 レース ${currentRaceNumber}R 検出`);
+                lineIndex++;
+                continue;
+            }
+
+            // 出走馬情報を検出（コメント行）
+            if (line.startsWith('# 出走馬:')) {
+                const race = this.findRace(races, currentRaceNumber);
+                if (race) {
+                    const runnersText = line.replace('# 出走馬:', '').trim();
+                    const runners = runnersText.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+                    race.runners = runners;
+                    console.log(`  🏃 出走馬情報: ${runners.join(',')} (${runners.length}頭)`);
+                }
+                lineIndex++;
+                continue;
+            }
+
+            // 取消馬情報を検出（コメント行）
+            if (line.startsWith('# 取消馬:')) {
+                const race = this.findRace(races, currentRaceNumber);
+                if (race) {
+                    const canceledText = line.replace('# 取消馬:', '').trim();
+                    const canceled = canceledText.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+                    race.canceledHorses = canceled;
+                    console.log(`  🚫 取消馬情報: ${canceled.join(',')}`);
+                }
+                lineIndex++;
+                continue;
+            }
+
+            // 登録頭数情報を検出（コメント行）
+            if (line.startsWith('# 登録頭数:')) {
+                const race = this.findRace(races, currentRaceNumber);
+                if (race) {
+                    const countText = line.replace('# 登録頭数:', '').trim();
+                    const count = parseInt(countText);
+                    if (!isNaN(count)) {
+                        race.horseCount = count;
+                        console.log(`  📊 登録頭数: ${count}頭`);
+                    }
+                }
                 lineIndex++;
                 continue;
             }

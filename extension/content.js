@@ -1,5 +1,5 @@
 // netkeiba.comのレース結果ページからデータを抽出するコンテンツスクリプト
-const EXTENSION_VERSION = '1.4.0';
+const EXTENSION_VERSION = '1.5.0';
 
 console.log(`🏇 netkeiba払い戻しデータ取得 v${EXTENSION_VERSION} - content.js loaded`);
 
@@ -19,6 +19,10 @@ function extractPayoutData() {
         const raceNumber = parseInt(raceId.slice(-2));
         console.log(`📍 レース番号: ${raceNumber}R`);
 
+        // 出走馬情報を抽出
+        const runnerInfo = extractRunnerInfo();
+        console.log('🐴 出走馬情報:', runnerInfo);
+
         // 払い戻しテーブルを探す
         const payoutSection = findPayoutSection();
         if (!payoutSection) {
@@ -28,6 +32,7 @@ function extractPayoutData() {
         // 各券種のデータを抽出
         const payoutData = {
             raceNumber: raceNumber,
+            ...runnerInfo,  // 出走馬情報を追加
             tansho: extractTicketData(payoutSection, '単勝'),
             fukusho: extractTicketData(payoutSection, '複勝'),
             wakuren: extractTicketData(payoutSection, '枠連'),
@@ -44,6 +49,123 @@ function extractPayoutData() {
     } catch (error) {
         console.error('❌ データ抽出エラー:', error);
         throw error;
+    }
+}
+
+// 出走馬情報を抽出する関数
+function extractRunnerInfo() {
+    console.log('🔍 出走馬情報の抽出開始');
+
+    try {
+        // レース結果テーブルを探す
+        const resultTables = document.querySelectorAll('table');
+        let resultTable = null;
+
+        // 「着順」「馬番」などの列があるテーブルを探す
+        for (const table of resultTables) {
+            const headerText = table.textContent;
+            if (headerText.includes('着順') && headerText.includes('馬番') && headerText.includes('馬名')) {
+                resultTable = table;
+                console.log('📊 レース結果テーブル発見');
+                break;
+            }
+        }
+
+        if (!resultTable) {
+            console.warn('⚠️ レース結果テーブルが見つかりません');
+            return { runners: null, canceledHorses: null };
+        }
+
+        const runners = [];
+        const canceledHorses = [];
+        const allRegistered = [];
+
+        // テーブルの行を解析
+        const rows = resultTable.querySelectorAll('tr');
+        console.log(`📊 テーブル行数: ${rows.length}`);
+
+        let rowIndex = 0;
+        for (const row of rows) {
+            const cells = row.querySelectorAll('td');
+            if (cells.length < 3) {
+                console.log(`  [${rowIndex}] スキップ（セル数: ${cells.length}）`);
+                rowIndex++;
+                continue;
+            }
+
+            // デバッグ: 各セルの内容を出力
+            const cellContents = Array.from(cells).slice(0, 8).map((cell, i) => {
+                return `[${i}]="${cell.textContent.trim()}"`;
+            }).join(', ');
+            console.log(`  [${rowIndex}] セル内容: ${cellContents}`);
+
+            // 取消判定（着順のセルをチェック）
+            let isCanceled = false;
+            if (cells.length > 0) {
+                const orderCell = cells[0].textContent.trim();
+                if (orderCell.includes('取消') || orderCell.includes('除外')) {
+                    isCanceled = true;
+                    console.log(`  [${rowIndex}] 🚫 着順セルに「取消」を検出: "${orderCell}"`);
+                }
+            }
+
+            // 馬番を抽出（セル[2]が馬番の列）
+            let horseNumber = null;
+            if (cells.length >= 3) {
+                const horseNumberText = cells[2].textContent.trim();
+                const num = parseInt(horseNumberText);
+
+                // 1-18の範囲の数字を馬番と判定
+                if (!isNaN(num) && num >= 1 && num <= 18) {
+                    horseNumber = num;
+                    console.log(`  [${rowIndex}] 馬番検出: ${horseNumber}番（セル[2]）`);
+                }
+            }
+
+            if (horseNumber === null) {
+                console.log(`  [${rowIndex}] ⚠️ 馬番が見つかりません`);
+                rowIndex++;
+                continue;
+            }
+
+            // 取消の行はスキップ（馬番を登録しない）
+            if (isCanceled) {
+                canceledHorses.push(horseNumber);
+                console.log(`  [${rowIndex}] 🚫 ${horseNumber}番: 取消`);
+                rowIndex++;
+                continue;
+            }
+
+            // 出走馬として登録
+            allRegistered.push(horseNumber);
+            runners.push(horseNumber);
+            console.log(`  [${rowIndex}] ✅ ${horseNumber}番: 出走`);
+
+            rowIndex++;
+        }
+
+        // 重複を削除してソート
+        const uniqueRunners = [...new Set(runners)].sort((a, b) => a - b);
+        const uniqueCanceled = [...new Set(canceledHorses)].sort((a, b) => a - b);
+        const uniqueRegistered = [...new Set(allRegistered)].sort((a, b) => a - b);
+
+        const result = {
+            runners: uniqueRunners.length > 0 ? uniqueRunners : null,
+            canceledHorses: uniqueCanceled.length > 0 ? uniqueCanceled : null,
+            allRegistered: uniqueRegistered.length > 0 ? uniqueRegistered : null,
+            horseCount: uniqueRegistered.length > 0 ? uniqueRegistered.length : null
+        };
+
+        console.log('✅ 出走馬情報抽出完了:');
+        console.log(`  📋 登録頭数: ${result.horseCount}頭`);
+        console.log(`  🏃 出走馬: [${result.runners ? result.runners.join(', ') : 'なし'}]`);
+        console.log(`  🚫 取消馬: [${result.canceledHorses ? result.canceledHorses.join(', ') : 'なし'}]`);
+
+        return result;
+
+    } catch (error) {
+        console.error('❌ 出走馬情報抽出エラー:', error);
+        return { runners: null, canceledHorses: null };
     }
 }
 
