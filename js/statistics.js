@@ -1312,12 +1312,17 @@ class Statistics {
 
                     // 配当データがあれば追加
                     if (race.payouts?.tansho) {
-                        stats[num].payouts.push(race.payouts.tansho.payout);
+                        // horseNumber形式とnumbers配列形式の両方に対応
+                        const tanshoHorseNum = race.payouts.tansho.horseNumber ||
+                                              (race.payouts.tansho.numbers && race.payouts.tansho.numbers[0]);
+                        if (tanshoHorseNum === num) {
+                            stats[num].payouts.push(race.payouts.tansho.payout);
+                        }
                     }
                 }
             }
 
-            // 全出走回数をカウント
+            // 実出走回数をカウント
             race.results.forEach(result => {
                 const num = result.number;
                 if (num >= 1 && num <= 18) {
@@ -1326,7 +1331,7 @@ class Statistics {
             });
         });
 
-        // 統計計算
+        // 統計計算（実出走数を分母にする）
         for (let i = 1; i <= 18; i++) {
             if (stats[i].total > 0) {
                 stats[i].winRate = (stats[i].wins / stats[i].total) * 100;
@@ -1364,31 +1369,29 @@ class Statistics {
             // 1-3着の馬番を取得
             const placedHorses = race.results.filter(r => r.position >= 1 && r.position <= 3);
 
-            placedHorses.forEach(horse => {
-                const num = horse.number;
-                if (num >= 1 && num <= 18) {
+            // 各馬番の的中判定（全馬番に対してレース数をカウント）
+            for (let num = 1; num <= 18; num++) {
+                stats[num].total++;  // 全ての馬番のtotalをカウント
+
+                // 1-3着に入っているかチェック
+                const isPlaced = placedHorses.some(h => h.number === num);
+                if (isPlaced) {
                     stats[num].hits++;
+                }
+            }
 
-                    // 配当データがあれば追加
-                    if (race.payouts?.fukusho && Array.isArray(race.payouts.fukusho)) {
-                        const fukushoPayout = race.payouts.fukusho.find(f => f.horseNumber === num);
-                        if (fukushoPayout) {
-                            stats[num].payouts.push(fukushoPayout.payout);
-                        }
+            // 配当データ集計
+            if (race.payouts?.fukusho && Array.isArray(race.payouts.fukusho)) {
+                race.payouts.fukusho.forEach(f => {
+                    const num = f.horseNumber || f.number;
+                    if (num >= 1 && num <= 18 && f.payout > 0) {
+                        stats[num].payouts.push(f.payout);
                     }
-                }
-            });
-
-            // 全出走回数をカウント
-            race.results.forEach(result => {
-                const num = result.number;
-                if (num >= 1 && num <= 18) {
-                    stats[num].total++;
-                }
-            });
+                });
+            }
         });
 
-        // 統計計算
+        // 統計計算（全レース数を分母にする - 人気別統計と同じロジック）
         for (let i = 1; i <= 18; i++) {
             if (stats[i].total > 0) {
                 stats[i].hitRate = (stats[i].hits / stats[i].total) * 100;
@@ -1445,7 +1448,7 @@ class Statistics {
                 });
             }
 
-            // 全出走馬番の appearances をカウント
+            // 実出走回数をカウント
             race.results.forEach(result => {
                 const num = result.number;
                 if (num >= 1 && num <= 18) {
@@ -1454,7 +1457,7 @@ class Statistics {
             });
         });
 
-        // 統計計算
+        // 統計計算（実出走数を分母にする）
         for (let i = 1; i <= 18; i++) {
             if (stats[i].appearances > 0) {
                 stats[i].hitRate = (stats[i].hits / stats[i].appearances) * 100;
@@ -1509,6 +1512,7 @@ class Statistics {
                 });
             }
 
+            // 実出走回数をカウント
             race.results.forEach(result => {
                 const num = result.number;
                 if (num >= 1 && num <= 18) {
@@ -1517,6 +1521,7 @@ class Statistics {
             });
         });
 
+        // 統計計算（実出走数を分母にする）
         for (let i = 1; i <= 18; i++) {
             if (stats[i].appearances > 0) {
                 stats[i].hitRate = (stats[i].hits / stats[i].appearances) * 100;
@@ -1567,6 +1572,7 @@ class Statistics {
                 }
             });
 
+            // 実出走回数をカウント
             race.results.forEach(result => {
                 const num = result.number;
                 if (num >= 1 && num <= 18) {
@@ -1575,6 +1581,7 @@ class Statistics {
             });
         });
 
+        // 統計計算（実出走数を分母にする）
         for (let i = 1; i <= 18; i++) {
             if (stats[i].appearances > 0) {
                 stats[i].hitRate = (stats[i].hits / stats[i].appearances) * 100;
@@ -1625,6 +1632,7 @@ class Statistics {
                 }
             });
 
+            // 実出走回数をカウント
             race.results.forEach(result => {
                 const num = result.number;
                 if (num >= 1 && num <= 18) {
@@ -1633,6 +1641,7 @@ class Statistics {
             });
         });
 
+        // 統計計算（実出走数を分母にする）
         for (let i = 1; i <= 18; i++) {
             if (stats[i].appearances > 0) {
                 stats[i].hitRate = (stats[i].hits / stats[i].appearances) * 100;
@@ -1683,6 +1692,7 @@ class Statistics {
                 }
             });
 
+            // 実出走回数をカウント
             race.results.forEach(result => {
                 const num = result.number;
                 if (num >= 1 && num <= 18) {
@@ -1691,6 +1701,7 @@ class Statistics {
             });
         });
 
+        // 統計計算（実出走数を分母にする）
         for (let i = 1; i <= 18; i++) {
             if (stats[i].appearances > 0) {
                 stats[i].hitRate = (stats[i].hits / stats[i].appearances) * 100;

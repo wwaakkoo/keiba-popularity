@@ -2805,6 +2805,7 @@ class AdvancedRaceAnalyzer {
                 break;
         }
 
+        console.log(`🔍 ${ticketType} 統計結果:`, result);
         const { stats } = result;
         const validStats = Object.entries(stats)
             .filter(([num, stat]) => stat.total > 0 || stat.appearances > 0)
