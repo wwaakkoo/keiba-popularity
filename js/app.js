@@ -1149,6 +1149,604 @@ class AdvancedRaceAnalyzer {
         tbody.innerHTML = html;
     }
 
+    // 直近 vs 全期間比較分析の実行
+    runRecentComparison() {
+        console.log('📊 直近傾向分析開始');
+
+        const ticketType = document.getElementById('ticketTypeSelector').value;
+        const recentRaceCount = parseInt(document.getElementById('recentRaceCount').value) || 50;
+
+        const statistics = new Statistics(this.filteredRaces);
+        const result = statistics.calculateRecentVsAllComparison(ticketType, recentRaceCount);
+
+        if (result.error) {
+            document.getElementById('recentComparisonResult').innerHTML = `
+                <div class="alert alert-warning">${result.error}</div>
+            `;
+            return;
+        }
+
+        this.displayRecentComparison(result);
+        console.log('✅ 直近傾向分析完了');
+    }
+
+    // 直近 vs 全期間比較の表示
+    displayRecentComparison(result) {
+        const container = document.getElementById('recentComparisonResult');
+        if (!container) return;
+
+        const { comparisons, totalRaces, recentRaceCount, recentDateRange } = result;
+
+        // デルタの絶対値でソート（変化が大きい順）
+        const sortedComparisons = [...comparisons].sort((a, b) =>
+            Math.abs(b.delta) - Math.abs(a.delta)
+        );
+
+        let html = `
+            <div class="comparison-summary">
+                <p><strong>分析期間:</strong> 全${totalRaces}レース（直近${recentRaceCount}レース: ${recentDateRange.start} ～ ${recentDateRange.end}）</p>
+            </div>
+
+            <div class="comparison-table-container">
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>馬券人気</th>
+                            <th>全期間<br>期待値</th>
+                            <th>直近${recentRaceCount}R<br>期待値</th>
+                            <th>差分<br>(デルタ)</th>
+                            <th>変化率</th>
+                            <th>傾向</th>
+                            <th>直近<br>サンプル数</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        sortedComparisons.forEach(comp => {
+            const trendIcon = comp.trend === 'improving' ? '↑' :
+                             comp.trend === 'declining' ? '↓' : '→';
+            const trendClass = comp.trend === 'improving' ? 'trend-up' :
+                              comp.trend === 'declining' ? 'trend-down' : 'trend-stable';
+            const deltaClass = comp.delta > 0 ? 'positive' : comp.delta < 0 ? 'negative' : '';
+
+            html += `
+                <tr class="${trendClass}">
+                    <td class="popularity-cell">${comp.popularity}番人気</td>
+                    <td>${comp.allPeriod.expectedValue.toFixed(1)}%</td>
+                    <td>${comp.recent.expectedValue.toFixed(1)}%</td>
+                    <td class="${deltaClass}"><strong>${comp.delta > 0 ? '+' : ''}${comp.delta.toFixed(1)}%</strong></td>
+                    <td class="${deltaClass}">${comp.deltaPercent > 0 ? '+' : ''}${comp.deltaPercent.toFixed(1)}%</td>
+                    <td class="trend-icon-cell ${trendClass}">${trendIcon}</td>
+                    <td>${comp.sampleSizeRecent}回</td>
+                </tr>
+            `;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="comparison-insights">
+                <h4>📈 主要な傾向</h4>
+                <div class="insights-list">
+        `;
+
+        // 好調トップ3
+        const improving = sortedComparisons
+            .filter(c => c.trend === 'improving')
+            .slice(0, 3);
+
+        if (improving.length > 0) {
+            html += '<div class="insight-item insight-improving"><strong>🔥 直近好調:</strong> ';
+            html += improving.map(c => `${c.popularity}番人気 (+${c.delta.toFixed(1)}%)`).join(', ');
+            html += '</div>';
+        }
+
+        // 不調トップ3
+        const declining = sortedComparisons
+            .filter(c => c.trend === 'declining')
+            .slice(0, 3);
+
+        if (declining.length > 0) {
+            html += '<div class="insight-item insight-declining"><strong>❄️ 直近不調:</strong> ';
+            html += declining.map(c => `${c.popularity}番人気 (${c.delta.toFixed(1)}%)`).join(', ');
+            html += '</div>';
+        }
+
+        html += `
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = html;
+    }
+
+    // 人気ベース（単勝・複勝）の直近傾向分析実行
+    runPopularityComparison(ticketType) {
+        console.log(`📊 ${ticketType} 直近傾向分析開始`);
+
+        const recentRaceCount = parseInt(document.getElementById(`${ticketType}RecentRaces`).value) || 50;
+
+        const statistics = new Statistics(this.filteredRaces);
+        const result = statistics.calculatePopularityComparison(ticketType, recentRaceCount);
+
+        if (result.error) {
+            document.getElementById(`${ticketType}ComparisonResult`).innerHTML = `
+                <div class="alert alert-warning">${result.error}</div>
+            `;
+            return;
+        }
+
+        this.displayPopularityComparison(result, ticketType);
+        console.log(`✅ ${ticketType} 直近傾向分析完了`);
+    }
+
+    // パターンベース（馬連～3連単）の直近傾向分析実行
+    runPatternComparison(ticketType) {
+        console.log(`📊 ${ticketType} 直近傾向分析開始`);
+
+        const recentRaceCount = parseInt(document.getElementById(`${ticketType}RecentRaces`).value) || 50;
+
+        const statistics = new Statistics(this.filteredRaces);
+        const result = statistics.calculatePatternComparison(ticketType, recentRaceCount);
+
+        if (result.error) {
+            document.getElementById(`${ticketType}ComparisonResult`).innerHTML = `
+                <div class="alert alert-warning">${result.error}</div>
+            `;
+            return;
+        }
+
+        this.displayPatternComparison(result, ticketType);
+        console.log(`✅ ${ticketType} 直近傾向分析完了`);
+    }
+
+    // 人気ベースの比較結果表示
+    displayPopularityComparison(result, ticketType) {
+        const container = document.getElementById(`${ticketType}ComparisonResult`);
+        if (!container) return;
+
+        const { comparisons, totalRaces, recentRaceCount, recentDateRange } = result;
+
+        // デルタの絶対値でソート（変化が大きい順）
+        const sortedComparisons = [...comparisons].sort((a, b) =>
+            Math.abs(b.delta) - Math.abs(a.delta)
+        );
+
+        const ticketTypeNames = {
+            'tansho': '単勝',
+            'fukusho': '複勝'
+        };
+
+        let html = `
+            <div class="comparison-summary">
+                <p><strong>分析期間:</strong> 全${totalRaces}レース（直近${recentRaceCount}レース: ${recentDateRange.start} ～ ${recentDateRange.end}）</p>
+            </div>
+
+            <div class="comparison-table-container">
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>人気</th>
+                            <th>全期間<br>期待値</th>
+                            <th>直近${recentRaceCount}R<br>期待値</th>
+                            <th>差分<br>(デルタ)</th>
+                            <th>変化率</th>
+                            <th>傾向</th>
+                            <th>直近<br>サンプル数</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        sortedComparisons.forEach(comp => {
+            const trendIcon = comp.trend === 'improving' ? '↑' :
+                             comp.trend === 'declining' ? '↓' : '→';
+            const trendClass = comp.trend === 'improving' ? 'trend-up' :
+                              comp.trend === 'declining' ? 'trend-down' : '';
+
+            html += `
+                <tr class="${trendClass}">
+                    <td><strong>${comp.popularity}番人気</strong></td>
+                    <td>${comp.allPeriod.expectedValue.toFixed(1)}%</td>
+                    <td>${comp.recent.expectedValue.toFixed(1)}%</td>
+                    <td class="${comp.delta >= 0 ? 'positive' : 'negative'}">
+                        ${comp.delta >= 0 ? '+' : ''}${comp.delta.toFixed(1)}%
+                    </td>
+                    <td>${comp.deltaPercent >= 0 ? '+' : ''}${comp.deltaPercent.toFixed(1)}%</td>
+                    <td>${trendIcon} ${comp.trend === 'improving' ? '上昇' : comp.trend === 'declining' ? '下降' : '安定'}</td>
+                    <td>${comp.sampleSizeRecent}</td>
+                </tr>
+            `;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="insights-section">
+                <h5>📈 主な傾向</h5>
+        `;
+
+        // 上昇傾向トップ3
+        const improving = sortedComparisons
+            .filter(c => c.trend === 'improving')
+            .sort((a, b) => b.delta - a.delta)
+            .slice(0, 3);
+
+        if (improving.length > 0) {
+            html += '<div class="insight-box insight-improving">';
+            html += '<strong>🔥 期待値上昇中:</strong><br>';
+            improving.forEach(c => {
+                html += `${c.popularity}番人気: ${c.allPeriod.expectedValue.toFixed(1)}% → ${c.recent.expectedValue.toFixed(1)}% (+${c.delta.toFixed(1)}%)<br>`;
+            });
+            html += '</div>';
+        }
+
+        // 下降傾向トップ3
+        const declining = sortedComparisons
+            .filter(c => c.trend === 'declining')
+            .sort((a, b) => a.delta - b.delta)
+            .slice(0, 3);
+
+        if (declining.length > 0) {
+            html += '<div class="insight-box insight-declining">';
+            html += '<strong>❄️ 期待値下降中:</strong><br>';
+            declining.forEach(c => {
+                html += `${c.popularity}番人気: ${c.allPeriod.expectedValue.toFixed(1)}% → ${c.recent.expectedValue.toFixed(1)}% (${c.delta.toFixed(1)}%)<br>`;
+            });
+            html += '</div>';
+        }
+
+        html += `
+            </div>
+        `;
+
+        container.innerHTML = html;
+    }
+
+    // パターンベースの比較結果表示
+    displayPatternComparison(result, ticketType) {
+        const container = document.getElementById(`${ticketType}ComparisonResult`);
+        if (!container) return;
+
+        const { comparisons, totalRaces, recentRaceCount, recentDateRange } = result;
+
+        // デルタの絶対値でソート（変化が大きい順）、上位30件のみ表示
+        const sortedComparisons = [...comparisons]
+            .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+            .slice(0, 30);
+
+        const ticketTypeNames = {
+            'umaren': '馬連',
+            'umatan': '馬単',
+            'wide': 'ワイド',
+            'sanrenpuku': '3連複',
+            'sanrentan': '3連単'
+        };
+
+        let html = `
+            <div class="comparison-summary">
+                <p><strong>分析期間:</strong> 全${totalRaces}レース（直近${recentRaceCount}レース: ${recentDateRange.start} ～ ${recentDateRange.end}）</p>
+                <p><small>※変化が大きい上位30パターンを表示</small></p>
+            </div>
+
+            <div class="comparison-table-container">
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>パターン</th>
+                            <th>全期間<br>期待値</th>
+                            <th>直近${recentRaceCount}R<br>期待値</th>
+                            <th>差分<br>(デルタ)</th>
+                            <th>変化率</th>
+                            <th>傾向</th>
+                            <th>直近<br>サンプル数</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        sortedComparisons.forEach(comp => {
+            const trendIcon = comp.trend === 'improving' ? '↑' :
+                             comp.trend === 'declining' ? '↓' : '→';
+            const trendClass = comp.trend === 'improving' ? 'trend-up' :
+                              comp.trend === 'declining' ? 'trend-down' : '';
+
+            html += `
+                <tr class="${trendClass}">
+                    <td><strong>${comp.pattern}</strong></td>
+                    <td>${comp.allPeriod.expectedValue.toFixed(1)}%</td>
+                    <td>${comp.recent.expectedValue.toFixed(1)}%</td>
+                    <td class="${comp.delta >= 0 ? 'positive' : 'negative'}">
+                        ${comp.delta >= 0 ? '+' : ''}${comp.delta.toFixed(1)}%
+                    </td>
+                    <td>${comp.deltaPercent >= 0 ? '+' : ''}${comp.deltaPercent.toFixed(1)}%</td>
+                    <td>${trendIcon} ${comp.trend === 'improving' ? '上昇' : comp.trend === 'declining' ? '下降' : '安定'}</td>
+                    <td>${comp.sampleSizeRecent}</td>
+                </tr>
+            `;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="insights-section">
+                <h5>📈 主な傾向</h5>
+        `;
+
+        // 上昇傾向トップ3
+        const improving = sortedComparisons
+            .filter(c => c.trend === 'improving')
+            .sort((a, b) => b.delta - a.delta)
+            .slice(0, 3);
+
+        if (improving.length > 0) {
+            html += '<div class="insight-box insight-improving">';
+            html += '<strong>🔥 期待値上昇中:</strong><br>';
+            improving.forEach(c => {
+                html += `${c.pattern}: ${c.allPeriod.expectedValue.toFixed(1)}% → ${c.recent.expectedValue.toFixed(1)}% (+${c.delta.toFixed(1)}%)<br>`;
+            });
+            html += '</div>';
+        }
+
+        // 下降傾向トップ3
+        const declining = sortedComparisons
+            .filter(c => c.trend === 'declining')
+            .sort((a, b) => a.delta - b.delta)
+            .slice(0, 3);
+
+        if (declining.length > 0) {
+            html += '<div class="insight-box insight-declining">';
+            html += '<strong>❄️ 期待値下降中:</strong><br>';
+            declining.forEach(c => {
+                html += `${c.pattern}: ${c.allPeriod.expectedValue.toFixed(1)}% → ${c.recent.expectedValue.toFixed(1)}% (${c.delta.toFixed(1)}%)<br>`;
+            });
+            html += '</div>';
+        }
+
+        html += `
+            </div>
+        `;
+
+        container.innerHTML = html;
+    }
+
+    // 時系列チャートの作成
+    createRollingChart(windows, ticketType) {
+        const canvas = document.getElementById('rollingChart');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+
+        // 既存のチャートを破棄
+        if (this.rollingChart) {
+            this.rollingChart.destroy();
+        }
+
+        // ユーザーが指定した馬券人気を取得
+        const popularitiesInput = document.getElementById('rollingPopularities').value.trim();
+        let selectedPopularities = [];
+
+        if (popularitiesInput) {
+            // ユーザー指定の馬券人気をパース
+            selectedPopularities = popularitiesInput
+                .split(',')
+                .map(p => parseInt(p.trim()))
+                .filter(p => !isNaN(p) && p > 0);
+        } else {
+            // 指定がない場合は全体の期待値上位5パターンを抽出
+            const allPopularities = new Set();
+            windows.forEach(window => {
+                Object.keys(window.stats).forEach(pop => {
+                    const stat = window.stats[pop];
+                    if (stat.expectedValue > 0) {
+                        allPopularities.add(parseInt(pop));
+                    }
+                });
+            });
+
+            // 全ウィンドウでの平均期待値を計算してソート
+            const popularityAvgExpected = {};
+            allPopularities.forEach(pop => {
+                let sum = 0;
+                let count = 0;
+                windows.forEach(window => {
+                    const stat = window.stats[pop];
+                    if (stat && stat.expectedValue > 0) {
+                        sum += stat.expectedValue;
+                        count++;
+                    }
+                });
+                popularityAvgExpected[pop] = count > 0 ? sum / count : 0;
+            });
+
+            selectedPopularities = Array.from(allPopularities)
+                .map(pop => ({
+                    popularity: pop,
+                    avgExpectedValue: popularityAvgExpected[pop]
+                }))
+                .sort((a, b) => b.avgExpectedValue - a.avgExpectedValue)
+                .slice(0, 5)
+                .map(item => item.popularity);
+        }
+
+        // データセット作成
+        const colors = [
+            'rgb(255, 99, 132)',
+            'rgb(54, 162, 235)',
+            'rgb(255, 206, 86)',
+            'rgb(75, 192, 192)',
+            'rgb(153, 102, 255)',
+            'rgb(255, 159, 64)',
+            'rgb(201, 203, 207)',
+            'rgb(83, 102, 255)',
+            'rgb(255, 99, 255)',
+            'rgb(99, 255, 132)'
+        ];
+
+        const datasets = selectedPopularities.map((pop, index) => {
+            return {
+                label: `${pop}番人気`,
+                data: windows.map(window => ({
+                    x: window.startDate,
+                    y: window.stats[pop]?.expectedValue || null
+                })),
+                borderColor: colors[index % colors.length],
+                backgroundColor: colors[index % colors.length],
+                tension: 0.3,
+                fill: false,
+                spanGaps: false
+            };
+        });
+
+        const config = {
+            type: 'line',
+            data: {
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 2,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    title: {
+                        display: true,
+                        text: '期待値の時系列推移（上位5パターン）'
+                    },
+                    annotation: {
+                        annotations: {
+                            line1: {
+                                type: 'line',
+                                yMin: 100,
+                                yMax: 100,
+                                borderColor: 'red',
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                label: {
+                                    content: '期待値100%',
+                                    enabled: true,
+                                    position: 'end'
+                                }
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'day',
+                            displayFormats: {
+                                day: 'MM/dd'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: '期間開始日'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: '期待値 (%)'
+                        },
+                        beginAtZero: false
+                    }
+                }
+            }
+        };
+
+        this.rollingChart = new Chart(ctx, config);
+    }
+
+    // 傾向サマリーの表示
+    displayRollingTrends(windows, ticketType) {
+        const container = document.getElementById('rollingTrendsSummary');
+        if (!container || windows.length < 2) return;
+
+        const firstWindow = windows[0];
+        const lastWindow = windows[windows.length - 1];
+
+        // ユーザーが指定した馬券人気を取得
+        const popularitiesInput = document.getElementById('rollingPopularities').value.trim();
+        let selectedPopularities = [];
+
+        if (popularitiesInput) {
+            selectedPopularities = popularitiesInput
+                .split(',')
+                .map(p => parseInt(p.trim()))
+                .filter(p => !isNaN(p) && p > 0);
+        }
+
+        // 期待値の変化を計算
+        const trends = [];
+        Object.keys(lastWindow.stats).forEach(pop => {
+            const popInt = parseInt(pop);
+
+            // ユーザー指定がある場合は、指定された馬券人気のみを対象にする
+            if (selectedPopularities.length > 0 && !selectedPopularities.includes(popInt)) {
+                return;
+            }
+
+            const firstStat = firstWindow.stats[pop];
+            const lastStat = lastWindow.stats[pop];
+
+            if (firstStat && lastStat && firstStat.expectedValue > 0 && lastStat.expectedValue > 0) {
+                const change = lastStat.expectedValue - firstStat.expectedValue;
+                const changePercent = (change / firstStat.expectedValue) * 100;
+
+                trends.push({
+                    popularity: pop,
+                    firstValue: firstStat.expectedValue,
+                    lastValue: lastStat.expectedValue,
+                    change: change,
+                    changePercent: changePercent,
+                    trend: Math.abs(change) < 3 ? 'stable' : (change > 0 ? 'increasing' : 'decreasing')
+                });
+            }
+        });
+
+        // 期待値の変化が大きい順にソート
+        trends.sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+
+        let html = `
+            <h4>傾向サマリー（${firstWindow.startDate} → ${lastWindow.startDate}）</h4>
+            <div class="trends-list">
+        `;
+
+        const maxDisplay = selectedPopularities.length > 0 ? trends.length : 10;
+        trends.slice(0, maxDisplay).forEach(trend => {
+            const trendIcon = trend.trend === 'increasing' ? '↑' :
+                             trend.trend === 'decreasing' ? '↓' : '→';
+            const trendClass = trend.trend === 'increasing' ? 'trend-up' :
+                              trend.trend === 'decreasing' ? 'trend-down' : 'trend-stable';
+
+            html += `
+                <div class="trend-item ${trendClass}">
+                    <span class="trend-label">${trend.popularity}番人気</span>
+                    <span class="trend-icon">${trendIcon}</span>
+                    <span class="trend-values">
+                        ${trend.firstValue.toFixed(1)}% → ${trend.lastValue.toFixed(1)}%
+                        (${trend.change > 0 ? '+' : ''}${trend.change.toFixed(1)}%)
+                    </span>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
     // 統計表示メソッド
     displayTanshoStats(stats) {
         const container = document.getElementById('tanshoStats');

@@ -12,6 +12,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="競馬分析">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
 </head>
 
 <body>
@@ -287,19 +289,17 @@
                                 </div>
                             </div>
 
-                            <!-- カスタム組み合わせ計算機 -->
-                            <div class="custom-calculator">
-                                <h4>🎯 カスタム組み合わせ計算機</h4>
-                                <div class="calculator-form">
+                            <!-- 直近傾向分析 -->
+                            <div class="recent-analysis-section">
+                                <h4>📊 直近傾向分析</h4>
+                                <div class="recent-controls">
                                     <div class="form-group">
-                                        <label class="form-label">人気を選択（カンマ区切りで複数指定可）</label>
-                                        <input type="text" id="tanshoPopularitySelect" class="form-control" 
-                                               placeholder="例: 1,2,3 または 1">
-                                        <small class="form-text">複数の人気を指定すると、全パターンの期待値を一覧表示します</small>
+                                        <label class="form-label">直近レース数</label>
+                                        <input type="number" id="tanshoRecentRaces" class="form-control" value="50" min="10" max="500">
                                     </div>
-                                    <button id="calculateTansho" class="btn btn--primary btn--sm">計算</button>
+                                    <button class="btn btn--primary btn--sm" onclick="analyzer.runPopularityComparison('tansho')">分析実行</button>
                                 </div>
-                                <div id="tanshoResult" class="calculator-result"></div>
+                                <div id="tanshoComparisonResult"></div>
                             </div>
                         </div>
 
@@ -329,19 +329,17 @@
                                 </div>
                             </div>
 
-                            <!-- カスタム組み合わせ計算機 -->
-                            <div class="custom-calculator">
-                                <h4>🎯 カスタム組み合わせ計算機</h4>
-                                <div class="calculator-form">
+                            <!-- 直近傾向分析 -->
+                            <div class="recent-analysis-section">
+                                <h4>📊 直近傾向分析</h4>
+                                <div class="recent-controls">
                                     <div class="form-group">
-                                        <label class="form-label">人気を選択（カンマ区切りで複数指定可）</label>
-                                        <input type="text" id="fukushoPopularitySelect" class="form-control" 
-                                               placeholder="例: 1,2,3 または 1">
-                                        <small class="form-text">複数の人気を指定すると、全パターンの期待値を一覧表示します</small>
+                                        <label class="form-label">直近レース数</label>
+                                        <input type="number" id="fukushoRecentRaces" class="form-control" value="50" min="10" max="500">
                                     </div>
-                                    <button id="calculateFukusho" class="form-primary btn--sm">計算</button>
+                                    <button class="btn btn--primary btn--sm" onclick="analyzer.runPopularityComparison('fukusho')">分析実行</button>
                                 </div>
-                                <div id="fukushoResult" class="calculator-result"></div>
+                                <div id="fukushoComparisonResult"></div>
                             </div>
                         </div>
 
@@ -378,7 +376,7 @@
                                     <div class="popularity-selectors">
                                         <div class="form-group">
                                             <label class="form-label">1頭目の人気（カンマ区切りで複数指定可）</label>
-                                            <input type="text" id="umarenPopularity1Text" class="form-control" 
+                                            <input type="text" id="umarenPopularity1Text" class="form-control"
                                                    placeholder="例: 1,2,3 または選択">
                                             <small class="form-text">または</small>
                                             <select id="umarenPopularity1" class="form-control">
@@ -403,7 +401,7 @@
                                         </div>
                                         <div class="form-group">
                                             <label class="form-label">2頭目の人気（カンマ区切りで複数指定可）</label>
-                                            <input type="text" id="umarenPopularity2Text" class="form-control" 
+                                            <input type="text" id="umarenPopularity2Text" class="form-control"
                                                    placeholder="例: 1,2,3 または選択">
                                             <small class="form-text">または</small>
                                             <select id="umarenPopularity2" class="form-control">
@@ -431,6 +429,19 @@
                                     <button id="calculateUmaren" class="btn btn--primary btn--sm">計算</button>
                                 </div>
                                 <div id="umarenResult" class="calculator-result"></div>
+                            </div>
+
+                            <!-- 直近傾向分析 -->
+                            <div class="recent-analysis-section">
+                                <h4>📊 直近傾向分析</h4>
+                                <div class="recent-controls">
+                                    <div class="form-group">
+                                        <label class="form-label">直近レース数</label>
+                                        <input type="number" id="umarenRecentRaces" class="form-control" value="50" min="10" max="500">
+                                    </div>
+                                    <button onclick="analyzer.runPatternComparison('umaren')">分析実行</button>
+                                </div>
+                                <div id="umarenComparisonResult"></div>
                             </div>
                         </div>
 
@@ -467,7 +478,7 @@
                                     <div class="popularity-selectors">
                                         <div class="form-group">
                                             <label class="form-label">1着の人気（カンマ区切りで複数指定可）</label>
-                                            <input type="text" id="umatanPopularity1Text" class="form-control" 
+                                            <input type="text" id="umatanPopularity1Text" class="form-control"
                                                    placeholder="例: 1,2,3 または選択">
                                             <small class="form-text">または</small>
                                             <select id="umatanPopularity1" class="form-control">
@@ -492,7 +503,7 @@
                                         </div>
                                         <div class="form-group">
                                             <label class="form-label">2着の人気（カンマ区切りで複数指定可）</label>
-                                            <input type="text" id="umatanPopularity2Text" class="form-control" 
+                                            <input type="text" id="umatanPopularity2Text" class="form-control"
                                                    placeholder="例: 1,2,3 または選択">
                                             <small class="form-text">または</small>
                                             <select id="umatanPopularity2" class="form-control">
@@ -520,6 +531,19 @@
                                     <button id="calculateUmatan" class="btn btn--primary btn--sm">計算</button>
                                 </div>
                                 <div id="umatanResult" class="calculator-result"></div>
+                            </div>
+
+                            <!-- 直近傾向分析 -->
+                            <div class="recent-analysis-section">
+                                <h4>📊 直近傾向分析</h4>
+                                <div class="recent-controls">
+                                    <div class="form-group">
+                                        <label class="form-label">直近レース数</label>
+                                        <input type="number" id="umatanRecentRaces" class="form-control" value="50" min="10" max="500">
+                                    </div>
+                                    <button onclick="analyzer.runPatternComparison('umatan')">分析実行</button>
+                                </div>
+                                <div id="umatanComparisonResult"></div>
                             </div>
                         </div>
 
@@ -556,7 +580,7 @@
                                     <div class="popularity-selectors">
                                         <div class="form-group">
                                             <label class="form-label">1頭目の人気（カンマ区切りで複数指定可）</label>
-                                            <input type="text" id="widePopularity1Text" class="form-control" 
+                                            <input type="text" id="widePopularity1Text" class="form-control"
                                                    placeholder="例: 1,2,3 または選択">
                                             <small class="form-text">または</small>
                                             <select id="widePopularity1" class="form-control">
@@ -581,7 +605,7 @@
                                         </div>
                                         <div class="form-group">
                                             <label class="form-label">2頭目の人気（カンマ区切りで複数指定可）</label>
-                                            <input type="text" id="widePopularity2Text" class="form-control" 
+                                            <input type="text" id="widePopularity2Text" class="form-control"
                                                    placeholder="例: 1,2,3 または選択">
                                             <small class="form-text">または</small>
                                             <select id="widePopularity2" class="form-control">
@@ -609,6 +633,19 @@
                                     <button id="calculateWide" class="btn btn--primary btn--sm">計算</button>
                                 </div>
                                 <div id="wideResult" class="calculator-result"></div>
+                            </div>
+
+                            <!-- 直近傾向分析 -->
+                            <div class="recent-analysis-section">
+                                <h4>📊 直近傾向分析</h4>
+                                <div class="recent-controls">
+                                    <div class="form-group">
+                                        <label class="form-label">直近レース数</label>
+                                        <input type="number" id="wideRecentRaces" class="form-control" value="50" min="10" max="500">
+                                    </div>
+                                    <button onclick="analyzer.runPatternComparison('wide')">分析実行</button>
+                                </div>
+                                <div id="wideComparisonResult"></div>
                             </div>
                         </div>
 
@@ -645,7 +682,7 @@
                                     <div class="popularity-selectors">
                                         <div class="form-group">
                                             <label class="form-label">1着の人気（カンマ区切りで複数指定可）</label>
-                                            <input type="text" id="sanrenpukuPopularity1Text" class="form-control" 
+                                            <input type="text" id="sanrenpukuPopularity1Text" class="form-control"
                                                    placeholder="例: 1,2,3 または選択">
                                             <small class="form-text">または</small>
                                             <select id="sanrenpukuPopularity1" class="form-control">
@@ -670,7 +707,7 @@
                                         </div>
                                         <div class="form-group">
                                             <label class="form-label">2着の人気（カンマ区切りで複数指定可）</label>
-                                            <input type="text" id="sanrenpukuPopularity2Text" class="form-control" 
+                                            <input type="text" id="sanrenpukuPopularity2Text" class="form-control"
                                                    placeholder="例: 1,2,3 または選択">
                                             <small class="form-text">または</small>
                                             <select id="sanrenpukuPopularity2" class="form-control">
@@ -695,7 +732,7 @@
                                         </div>
                                         <div class="form-group">
                                             <label class="form-label">3着の人気（カンマ区切りで複数指定可）</label>
-                                            <input type="text" id="sanrenpukuPopularity3Text" class="form-control" 
+                                            <input type="text" id="sanrenpukuPopularity3Text" class="form-control"
                                                    placeholder="例: 1,2,3 または選択">
                                             <small class="form-text">または</small>
                                             <select id="sanrenpukuPopularity3" class="form-control">
@@ -723,6 +760,19 @@
                                     <button id="calculateSanrenpuku" class="btn btn--primary btn--sm">計算</button>
                                 </div>
                                 <div id="sanrenpukuResult" class="calculator-result"></div>
+                            </div>
+
+                            <!-- 直近傾向分析 -->
+                            <div class="recent-analysis-section">
+                                <h4>📊 直近傾向分析</h4>
+                                <div class="recent-controls">
+                                    <div class="form-group">
+                                        <label class="form-label">直近レース数</label>
+                                        <input type="number" id="sanrenpukuRecentRaces" class="form-control" value="50" min="10" max="500">
+                                    </div>
+                                    <button onclick="analyzer.runPatternComparison('sanrenpuku')">分析実行</button>
+                                </div>
+                                <div id="sanrenpukuComparisonResult"></div>
                             </div>
                         </div>
 
@@ -759,7 +809,7 @@
                                     <div class="popularity-selectors">
                                         <div class="form-group">
                                             <label class="form-label">1着の人気（カンマ区切りで複数指定可）</label>
-                                            <input type="text" id="sanrentanPopularity1Text" class="form-control" 
+                                            <input type="text" id="sanrentanPopularity1Text" class="form-control"
                                                    placeholder="例: 1,2,3 または選択">
                                             <small class="form-text">または</small>
                                             <select id="sanrentanPopularity1" class="form-control">
@@ -784,7 +834,7 @@
                                         </div>
                                         <div class="form-group">
                                             <label class="form-label">2着の人気（カンマ区切りで複数指定可）</label>
-                                            <input type="text" id="sanrentanPopularity2Text" class="form-control" 
+                                            <input type="text" id="sanrentanPopularity2Text" class="form-control"
                                                    placeholder="例: 1,2,3 または選択">
                                             <small class="form-text">または</small>
                                             <select id="sanrentanPopularity2" class="form-control">
@@ -809,7 +859,7 @@
                                         </div>
                                         <div class="form-group">
                                             <label class="form-label">3着の人気（カンマ区切りで複数指定可）</label>
-                                            <input type="text" id="sanrentanPopularity3Text" class="form-control" 
+                                            <input type="text" id="sanrentanPopularity3Text" class="form-control"
                                                    placeholder="例: 1,2,3 または選択">
                                             <small class="form-text">または</small>
                                             <select id="sanrentanPopularity3" class="form-control">
@@ -837,6 +887,19 @@
                                     <button id="calculateSanrentan" class="btn btn--primary btn--sm">計算</button>
                                 </div>
                                 <div id="sanrentanResult" class="calculator-result"></div>
+                            </div>
+
+                            <!-- 直近傾向分析 -->
+                            <div class="recent-analysis-section">
+                                <h4>📊 直近傾向分析</h4>
+                                <div class="recent-controls">
+                                    <div class="form-group">
+                                        <label class="form-label">直近レース数</label>
+                                        <input type="number" id="sanrentanRecentRaces" class="form-control" value="50" min="10" max="500">
+                                    </div>
+                                    <button onclick="analyzer.runPatternComparison('sanrentan')">分析実行</button>
+                                </div>
+                                <div id="sanrentanComparisonResult"></div>
                             </div>
                         </div>
 
@@ -895,6 +958,32 @@
                                         <li>払い戻しデータに馬券人気が含まれている場合のみ表示されます</li>
                                         <li>データが不足している人気順位は表示されません</li>
                                     </ul>
+                                </div>
+
+                                <!-- 直近 vs 全期間比較セクション -->
+                                <div class="rolling-analysis-section">
+                                    <h3>📊 直近傾向分析（直近 vs 全期間）</h3>
+                                    <div class="info-box info-box--info">
+                                        <p><strong>直近傾向分析について</strong></p>
+                                        <p>直近Xレースの期待値と全期間の期待値を比較し、「今、どの馬券人気が調子が良いか」を確認できます。</p>
+                                        <p>差分（デルタ）がプラス = 直近は通常より好調、マイナス = 不調を意味します。</p>
+                                    </div>
+
+                                    <div class="rolling-controls">
+                                        <div class="form-group">
+                                            <label class="form-label">直近レース数</label>
+                                            <input type="number" id="recentRaceCount" class="form-control" value="50" min="10" max="500">
+                                            <small class="form-text">比較対象とする直近のレース数（デフォルト：50レース）</small>
+                                        </div>
+
+                                        <button id="runRecentComparison" class="btn btn--primary" onclick="analyzer.runRecentComparison()">
+                                            分析実行
+                                        </button>
+                                    </div>
+
+                                    <div id="recentComparisonResult">
+                                        <!-- 結果がJavaScriptで挿入されます -->
+                                    </div>
                                 </div>
                             </div>
                         </div>

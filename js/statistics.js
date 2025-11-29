@@ -931,4 +931,354 @@ class Statistics {
 
         return { stats, totalWithPopularity };
     }
+
+    // 馬券人気統計の時系列分析（移動平均）
+    calculateRollingTicketPopularityStats(ticketType, windowDays, stepDays) {
+        // レースを日付順にソート
+        const sortedRaces = [...this.filteredRaces].sort((a, b) =>
+            new Date(a.date) - new Date(b.date)
+        );
+
+        if (sortedRaces.length === 0) {
+            return { windows: [], error: 'データがありません' };
+        }
+
+        const startDate = new Date(sortedRaces[0].date);
+        const endDate = new Date(sortedRaces[sortedRaces.length - 1].date);
+
+        const windows = [];
+        let currentDate = new Date(startDate);
+
+        while (currentDate <= endDate) {
+            const windowStart = new Date(currentDate);
+            const windowEnd = new Date(currentDate);
+            windowEnd.setDate(windowEnd.getDate() + windowDays);
+
+            // ウィンドウ内のレースを抽出
+            const windowRaces = sortedRaces.filter(race => {
+                const raceDate = new Date(race.date);
+                return raceDate >= windowStart && raceDate < windowEnd;
+            });
+
+            // ウィンドウ内のレースが十分にある場合のみ計算
+            if (windowRaces.length >= 5) {
+                // ウィンドウ内のレースで統計計算
+                const tempStats = new Statistics(windowRaces);
+                let result;
+
+                switch(ticketType) {
+                    case 'umaren':
+                        result = tempStats.calculateUmarenTicketPopularityStats();
+                        break;
+                    case 'umatan':
+                        result = tempStats.calculateUmatanTicketPopularityStats();
+                        break;
+                    case 'wide':
+                        result = tempStats.calculateWideTicketPopularityStats();
+                        break;
+                    case 'sanrenpuku':
+                        result = tempStats.calculateSanrenpukuTicketPopularityStats();
+                        break;
+                    case 'sanrentan':
+                        result = tempStats.calculateSanrentanTicketPopularityStats();
+                        break;
+                    default:
+                        return { windows: [], error: '不明な馬券種別' };
+                }
+
+                windows.push({
+                    startDate: windowStart.toISOString().split('T')[0],
+                    endDate: windowEnd.toISOString().split('T')[0],
+                    raceCount: windowRaces.length,
+                    stats: result.stats
+                });
+            }
+
+            // ステップサイズ分日付を進める
+            currentDate.setDate(currentDate.getDate() + stepDays);
+        }
+
+        if (windows.length === 0) {
+            return { windows: [], error: 'ウィンドウサイズとステップサイズに対してデータが不足しています' };
+        }
+
+        return { windows };
+    }
+
+    // 直近レース vs 全期間比較分析
+    calculateRecentVsAllComparison(ticketType, recentRaceCount) {
+        // レースを日付順にソート
+        const sortedRaces = [...this.filteredRaces].sort((a, b) =>
+            new Date(a.date) - new Date(b.date)
+        );
+
+        if (sortedRaces.length === 0) {
+            return { error: 'データがありません' };
+        }
+
+        if (sortedRaces.length < recentRaceCount) {
+            return { error: `データ不足: 全${sortedRaces.length}レース（${recentRaceCount}レース以上必要）` };
+        }
+
+        // 全期間の統計を計算
+        const allPeriodStats = new Statistics(sortedRaces);
+        let allPeriodResult;
+
+        switch(ticketType) {
+            case 'umaren':
+                allPeriodResult = allPeriodStats.calculateUmarenTicketPopularityStats();
+                break;
+            case 'umatan':
+                allPeriodResult = allPeriodStats.calculateUmatanTicketPopularityStats();
+                break;
+            case 'wide':
+                allPeriodResult = allPeriodStats.calculateWideTicketPopularityStats();
+                break;
+            case 'sanrenpuku':
+                allPeriodResult = allPeriodStats.calculateSanrenpukuTicketPopularityStats();
+                break;
+            case 'sanrentan':
+                allPeriodResult = allPeriodStats.calculateSanrentanTicketPopularityStats();
+                break;
+            default:
+                return { error: '不明な馬券種別' };
+        }
+
+        // 直近レースの統計を計算
+        const recentRaces = sortedRaces.slice(-recentRaceCount);
+        const recentStats = new Statistics(recentRaces);
+        let recentResult;
+
+        switch(ticketType) {
+            case 'umaren':
+                recentResult = recentStats.calculateUmarenTicketPopularityStats();
+                break;
+            case 'umatan':
+                recentResult = recentStats.calculateUmatanTicketPopularityStats();
+                break;
+            case 'wide':
+                recentResult = recentStats.calculateWideTicketPopularityStats();
+                break;
+            case 'sanrenpuku':
+                recentResult = recentStats.calculateSanrenpukuTicketPopularityStats();
+                break;
+            case 'sanrentan':
+                recentResult = recentStats.calculateSanrentanTicketPopularityStats();
+                break;
+        }
+
+        // 比較データを作成
+        const comparisons = [];
+        const allStats = allPeriodResult.stats;
+        const recStats = recentResult.stats;
+
+        Object.keys(allStats).forEach(pop => {
+            const allStat = allStats[pop];
+            const recentStat = recStats[pop];
+
+            // 両方にデータがある場合のみ比較
+            if (allStat && recentStat && allStat.wins > 0 && recentStat.wins > 0) {
+                const delta = recentStat.expectedValue - allStat.expectedValue;
+                const deltaPercent = allStat.expectedValue > 0 ?
+                    (delta / allStat.expectedValue) * 100 : 0;
+
+                comparisons.push({
+                    popularity: parseInt(pop),
+                    allPeriod: {
+                        expectedValue: allStat.expectedValue,
+                        wins: allStat.wins,
+                        winRate: allStat.winRate,
+                        averagePayout: allStat.averagePayout
+                    },
+                    recent: {
+                        expectedValue: recentStat.expectedValue,
+                        wins: recentStat.wins,
+                        winRate: recentStat.winRate,
+                        averagePayout: recentStat.averagePayout
+                    },
+                    delta: delta,
+                    deltaPercent: deltaPercent,
+                    trend: Math.abs(delta) < 5 ? 'stable' : (delta > 0 ? 'improving' : 'declining'),
+                    sampleSizeRecent: recentStat.wins,
+                    sampleSizeAll: allStat.wins
+                });
+            }
+        });
+
+        return {
+            comparisons: comparisons,
+            totalRaces: sortedRaces.length,
+            recentRaceCount: recentRaceCount,
+            recentDateRange: {
+                start: recentRaces[0].date,
+                end: recentRaces[recentRaces.length - 1].date
+            }
+        };
+    }
+
+    // 人気別期待値の直近 vs 全期間比較（単勝・複勝用）
+    calculatePopularityComparison(ticketType, recentRaceCount) {
+        const sortedRaces = [...this.filteredRaces].sort((a, b) =>
+            new Date(a.date) - new Date(b.date)
+        );
+
+        if (sortedRaces.length === 0) {
+            return { error: 'データがありません' };
+        }
+
+        if (sortedRaces.length < recentRaceCount) {
+            return { error: `データ不足: 全${sortedRaces.length}レース（${recentRaceCount}レース以上必要）` };
+        }
+
+        // 全期間の統計
+        const allPeriodStats = new Statistics(sortedRaces);
+        const allResults = sortedRaces.flatMap(r => r.results);
+        const allPeriodData = ticketType === 'tansho' ?
+            allPeriodStats.calculateTanshoStats(allResults) :
+            allPeriodStats.calculateFukushoStats(allResults);
+
+        // 直近レースの統計
+        const recentRaces = sortedRaces.slice(-recentRaceCount);
+        const recentStats = new Statistics(recentRaces);
+        const recentResults = recentRaces.flatMap(r => r.results);
+        const recentData = ticketType === 'tansho' ?
+            recentStats.calculateTanshoStats(recentResults) :
+            recentStats.calculateFukushoStats(recentResults);
+
+        // 比較データ作成
+        const comparisons = [];
+        for (let pop = 1; pop <= 16; pop++) {
+            const allStat = allPeriodData[pop];
+            const recentStat = recentData[pop];
+
+            if (allStat && recentStat && allStat.total > 0 && recentStat.total > 0) {
+                const delta = recentStat.expectedValue - allStat.expectedValue;
+                const deltaPercent = allStat.expectedValue > 0 ?
+                    (delta / allStat.expectedValue) * 100 : 0;
+
+                comparisons.push({
+                    popularity: pop,
+                    allPeriod: {
+                        expectedValue: allStat.expectedValue,
+                        wins: ticketType === 'tansho' ? allStat.wins : allStat.hits,
+                        winRate: allStat.winRate,
+                        averagePayout: allStat.averagePayout
+                    },
+                    recent: {
+                        expectedValue: recentStat.expectedValue,
+                        wins: ticketType === 'tansho' ? recentStat.wins : recentStat.hits,
+                        winRate: recentStat.winRate,
+                        averagePayout: recentStat.averagePayout
+                    },
+                    delta: delta,
+                    deltaPercent: deltaPercent,
+                    trend: Math.abs(delta) < 5 ? 'stable' : (delta > 0 ? 'improving' : 'declining'),
+                    sampleSizeRecent: ticketType === 'tansho' ? recentStat.wins : recentStat.hits,
+                    sampleSizeAll: ticketType === 'tansho' ? allStat.wins : allStat.hits
+                });
+            }
+        }
+
+        return {
+            comparisons: comparisons,
+            totalRaces: sortedRaces.length,
+            recentRaceCount: recentRaceCount,
+            recentDateRange: {
+                start: recentRaces[0].date,
+                end: recentRaces[recentRaces.length - 1].date
+            }
+        };
+    }
+
+    // パターン別期待値の直近 vs 全期間比較（馬連・馬単・ワイド・3連複・3連単用）
+    calculatePatternComparison(ticketType, recentRaceCount) {
+        const sortedRaces = [...this.filteredRaces].sort((a, b) =>
+            new Date(a.date) - new Date(b.date)
+        );
+
+        if (sortedRaces.length === 0) {
+            return { error: 'データがありません' };
+        }
+
+        if (sortedRaces.length < recentRaceCount) {
+            return { error: `データ不足: 全${sortedRaces.length}レース（${recentRaceCount}レース以上必要）` };
+        }
+
+        // 統計計算関数を選択
+        const calculateFunc = {
+            'umaren': (stats) => stats.calculateUmarenStats(),
+            'umatan': (stats) => stats.calculateUmatanStats(),
+            'wide': (stats) => stats.calculateWideStats(),
+            'sanrenpuku': (stats) => stats.calculateSanrenpukuStats(),
+            'sanrentan': (stats) => stats.calculateSanrentanStats()
+        }[ticketType];
+
+        if (!calculateFunc) {
+            return { error: '不明な馬券種別' };
+        }
+
+        // 全期間の統計
+        const allPeriodStats = new Statistics(sortedRaces);
+        const allPeriodData = calculateFunc(allPeriodStats);
+
+        // 直近レースの統計
+        const recentRaces = sortedRaces.slice(-recentRaceCount);
+        const recentStats = new Statistics(recentRaces);
+        const recentData = calculateFunc(recentStats);
+
+        // パターンをマップに変換
+        const allPatternMap = {};
+        allPeriodData.patterns.forEach(p => {
+            allPatternMap[p.pattern] = p;
+        });
+
+        const recentPatternMap = {};
+        recentData.patterns.forEach(p => {
+            recentPatternMap[p.pattern] = p;
+        });
+
+        // 比較データ作成
+        const comparisons = [];
+        Object.keys(allPatternMap).forEach(pattern => {
+            const allStat = allPatternMap[pattern];
+            const recentStat = recentPatternMap[pattern];
+
+            if (allStat && recentStat && allStat.count > 0 && recentStat.count > 0) {
+                const delta = recentStat.expectedValue - allStat.expectedValue;
+                const deltaPercent = allStat.expectedValue > 0 ?
+                    (delta / allStat.expectedValue) * 100 : 0;
+
+                comparisons.push({
+                    pattern: pattern,
+                    allPeriod: {
+                        expectedValue: allStat.expectedValue,
+                        count: allStat.count,
+                        percentage: allStat.percentage,
+                        averagePayout: allStat.averagePayout
+                    },
+                    recent: {
+                        expectedValue: recentStat.expectedValue,
+                        count: recentStat.count,
+                        percentage: recentStat.percentage,
+                        averagePayout: recentStat.averagePayout
+                    },
+                    delta: delta,
+                    deltaPercent: deltaPercent,
+                    trend: Math.abs(delta) < 5 ? 'stable' : (delta > 0 ? 'improving' : 'declining'),
+                    sampleSizeRecent: recentStat.count,
+                    sampleSizeAll: allStat.count
+                });
+            }
+        });
+
+        return {
+            comparisons: comparisons,
+            totalRaces: sortedRaces.length,
+            recentRaceCount: recentRaceCount,
+            recentDateRange: {
+                start: recentRaces[0].date,
+                end: recentRaces[recentRaces.length - 1].date
+            }
+        };
+    }
 }
