@@ -1281,4 +1281,553 @@ class Statistics {
             }
         };
     }
+
+    // ==================== 馬番統計メソッド ====================
+
+    // 単勝の馬番別統計
+    calculateHorseNumberTanshoStats() {
+        const stats = {};
+        for (let i = 1; i <= 18; i++) {
+            stats[i] = {
+                horseNumber: i,
+                total: 0,
+                wins: 0,
+                winRate: 0,
+                payouts: [],
+                averagePayout: 0,
+                expectedValue: 0,
+                minPayout: 0,
+                maxPayout: 0
+            };
+        }
+
+        // データ集計
+        this.filteredRaces.forEach(race => {
+            // 1着馬の馬番を取得
+            const winner = race.results.find(r => r.position === 1);
+            if (winner) {
+                const num = winner.number;
+                if (num >= 1 && num <= 18) {
+                    stats[num].wins++;
+
+                    // 配当データがあれば追加
+                    if (race.payouts?.tansho) {
+                        stats[num].payouts.push(race.payouts.tansho.payout);
+                    }
+                }
+            }
+
+            // 全出走回数をカウント
+            race.results.forEach(result => {
+                const num = result.number;
+                if (num >= 1 && num <= 18) {
+                    stats[num].total++;
+                }
+            });
+        });
+
+        // 統計計算
+        for (let i = 1; i <= 18; i++) {
+            if (stats[i].total > 0) {
+                stats[i].winRate = (stats[i].wins / stats[i].total) * 100;
+                if (stats[i].payouts.length > 0) {
+                    stats[i].averagePayout = stats[i].payouts.reduce((a, b) => a + b, 0) / stats[i].payouts.length;
+                    stats[i].minPayout = Math.min(...stats[i].payouts);
+                    stats[i].maxPayout = Math.max(...stats[i].payouts);
+                    stats[i].expectedValue = (stats[i].winRate * stats[i].averagePayout) / 100;
+                }
+            }
+        }
+
+        return { stats, totalRaces: this.filteredRaces.length };
+    }
+
+    // 複勝の馬番別統計
+    calculateHorseNumberFukushoStats() {
+        const stats = {};
+        for (let i = 1; i <= 18; i++) {
+            stats[i] = {
+                horseNumber: i,
+                total: 0,
+                hits: 0,
+                hitRate: 0,
+                payouts: [],
+                averagePayout: 0,
+                expectedValue: 0,
+                minPayout: 0,
+                maxPayout: 0
+            };
+        }
+
+        // データ集計
+        this.filteredRaces.forEach(race => {
+            // 1-3着の馬番を取得
+            const placedHorses = race.results.filter(r => r.position >= 1 && r.position <= 3);
+
+            placedHorses.forEach(horse => {
+                const num = horse.number;
+                if (num >= 1 && num <= 18) {
+                    stats[num].hits++;
+
+                    // 配当データがあれば追加
+                    if (race.payouts?.fukusho && Array.isArray(race.payouts.fukusho)) {
+                        const fukushoPayout = race.payouts.fukusho.find(f => f.horseNumber === num);
+                        if (fukushoPayout) {
+                            stats[num].payouts.push(fukushoPayout.payout);
+                        }
+                    }
+                }
+            });
+
+            // 全出走回数をカウント
+            race.results.forEach(result => {
+                const num = result.number;
+                if (num >= 1 && num <= 18) {
+                    stats[num].total++;
+                }
+            });
+        });
+
+        // 統計計算
+        for (let i = 1; i <= 18; i++) {
+            if (stats[i].total > 0) {
+                stats[i].hitRate = (stats[i].hits / stats[i].total) * 100;
+                if (stats[i].payouts.length > 0) {
+                    stats[i].averagePayout = stats[i].payouts.reduce((a, b) => a + b, 0) / stats[i].payouts.length;
+                    stats[i].minPayout = Math.min(...stats[i].payouts);
+                    stats[i].maxPayout = Math.max(...stats[i].payouts);
+                    stats[i].expectedValue = (stats[i].hitRate * stats[i].averagePayout) / 100;
+                }
+            }
+        }
+
+        return { stats, totalRaces: this.filteredRaces.length };
+    }
+
+    // 馬連の馬番別統計
+    calculateHorseNumberUmarenStats() {
+        const stats = {};
+        for (let i = 1; i <= 18; i++) {
+            stats[i] = {
+                horseNumber: i,
+                appearances: 0,
+                hits: 0,
+                hitRate: 0,
+                payouts: [],
+                averagePayout: 0,
+                expectedValue: 0,
+                minPayout: 0,
+                maxPayout: 0
+            };
+        }
+
+        this.filteredRaces.forEach(race => {
+            // 1-2着の馬番を取得
+            const first = race.results.find(r => r.position === 1);
+            const second = race.results.find(r => r.position === 2);
+
+            if (first && second) {
+                const nums = [first.number, second.number];
+
+                nums.forEach(num => {
+                    if (num >= 1 && num <= 18) {
+                        stats[num].hits++;
+
+                        // 配当データから該当馬番を含む配当を抽出
+                        if (race.payouts?.umaren && Array.isArray(race.payouts.umaren)) {
+                            race.payouts.umaren.forEach(umaren => {
+                                if (umaren.combination && umaren.combination.includes(num)) {
+                                    stats[num].payouts.push(umaren.payout);
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+
+            // 全出走馬番の appearances をカウント
+            race.results.forEach(result => {
+                const num = result.number;
+                if (num >= 1 && num <= 18) {
+                    stats[num].appearances++;
+                }
+            });
+        });
+
+        // 統計計算
+        for (let i = 1; i <= 18; i++) {
+            if (stats[i].appearances > 0) {
+                stats[i].hitRate = (stats[i].hits / stats[i].appearances) * 100;
+                if (stats[i].payouts.length > 0) {
+                    stats[i].averagePayout = stats[i].payouts.reduce((a, b) => a + b, 0) / stats[i].payouts.length;
+                    stats[i].minPayout = Math.min(...stats[i].payouts);
+                    stats[i].maxPayout = Math.max(...stats[i].payouts);
+                    stats[i].expectedValue = (stats[i].hitRate * stats[i].averagePayout) / 100;
+                }
+            }
+        }
+
+        return { stats, totalRaces: this.filteredRaces.length };
+    }
+
+    // 馬単の馬番別統計
+    calculateHorseNumberUmatanStats() {
+        const stats = {};
+        for (let i = 1; i <= 18; i++) {
+            stats[i] = {
+                horseNumber: i,
+                appearances: 0,
+                hits: 0,
+                hitRate: 0,
+                payouts: [],
+                averagePayout: 0,
+                expectedValue: 0,
+                minPayout: 0,
+                maxPayout: 0
+            };
+        }
+
+        this.filteredRaces.forEach(race => {
+            const first = race.results.find(r => r.position === 1);
+            const second = race.results.find(r => r.position === 2);
+
+            if (first && second) {
+                const nums = [first.number, second.number];
+
+                nums.forEach(num => {
+                    if (num >= 1 && num <= 18) {
+                        stats[num].hits++;
+
+                        if (race.payouts?.umatan && Array.isArray(race.payouts.umatan)) {
+                            race.payouts.umatan.forEach(umatan => {
+                                if (umatan.combination && umatan.combination.includes(num)) {
+                                    stats[num].payouts.push(umatan.payout);
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+
+            race.results.forEach(result => {
+                const num = result.number;
+                if (num >= 1 && num <= 18) {
+                    stats[num].appearances++;
+                }
+            });
+        });
+
+        for (let i = 1; i <= 18; i++) {
+            if (stats[i].appearances > 0) {
+                stats[i].hitRate = (stats[i].hits / stats[i].appearances) * 100;
+                if (stats[i].payouts.length > 0) {
+                    stats[i].averagePayout = stats[i].payouts.reduce((a, b) => a + b, 0) / stats[i].payouts.length;
+                    stats[i].minPayout = Math.min(...stats[i].payouts);
+                    stats[i].maxPayout = Math.max(...stats[i].payouts);
+                    stats[i].expectedValue = (stats[i].hitRate * stats[i].averagePayout) / 100;
+                }
+            }
+        }
+
+        return { stats, totalRaces: this.filteredRaces.length };
+    }
+
+    // ワイドの馬番別統計
+    calculateHorseNumberWideStats() {
+        const stats = {};
+        for (let i = 1; i <= 18; i++) {
+            stats[i] = {
+                horseNumber: i,
+                appearances: 0,
+                hits: 0,
+                hitRate: 0,
+                payouts: [],
+                averagePayout: 0,
+                expectedValue: 0,
+                minPayout: 0,
+                maxPayout: 0
+            };
+        }
+
+        this.filteredRaces.forEach(race => {
+            const placedHorses = race.results.filter(r => r.position >= 1 && r.position <= 3);
+
+            placedHorses.forEach(horse => {
+                const num = horse.number;
+                if (num >= 1 && num <= 18) {
+                    stats[num].hits++;
+
+                    if (race.payouts?.wide && Array.isArray(race.payouts.wide)) {
+                        race.payouts.wide.forEach(wide => {
+                            if (wide.combination && wide.combination.includes(num)) {
+                                stats[num].payouts.push(wide.payout);
+                            }
+                        });
+                    }
+                }
+            });
+
+            race.results.forEach(result => {
+                const num = result.number;
+                if (num >= 1 && num <= 18) {
+                    stats[num].appearances++;
+                }
+            });
+        });
+
+        for (let i = 1; i <= 18; i++) {
+            if (stats[i].appearances > 0) {
+                stats[i].hitRate = (stats[i].hits / stats[i].appearances) * 100;
+                if (stats[i].payouts.length > 0) {
+                    stats[i].averagePayout = stats[i].payouts.reduce((a, b) => a + b, 0) / stats[i].payouts.length;
+                    stats[i].minPayout = Math.min(...stats[i].payouts);
+                    stats[i].maxPayout = Math.max(...stats[i].payouts);
+                    stats[i].expectedValue = (stats[i].hitRate * stats[i].averagePayout) / 100;
+                }
+            }
+        }
+
+        return { stats, totalRaces: this.filteredRaces.length };
+    }
+
+    // 3連複の馬番別統計
+    calculateHorseNumberSanrenpukuStats() {
+        const stats = {};
+        for (let i = 1; i <= 18; i++) {
+            stats[i] = {
+                horseNumber: i,
+                appearances: 0,
+                hits: 0,
+                hitRate: 0,
+                payouts: [],
+                averagePayout: 0,
+                expectedValue: 0,
+                minPayout: 0,
+                maxPayout: 0
+            };
+        }
+
+        this.filteredRaces.forEach(race => {
+            const placedHorses = race.results.filter(r => r.position >= 1 && r.position <= 3);
+
+            placedHorses.forEach(horse => {
+                const num = horse.number;
+                if (num >= 1 && num <= 18) {
+                    stats[num].hits++;
+
+                    if (race.payouts?.sanrenpuku && Array.isArray(race.payouts.sanrenpuku)) {
+                        race.payouts.sanrenpuku.forEach(sanrenpuku => {
+                            if (sanrenpuku.combination && sanrenpuku.combination.includes(num)) {
+                                stats[num].payouts.push(sanrenpuku.payout);
+                            }
+                        });
+                    }
+                }
+            });
+
+            race.results.forEach(result => {
+                const num = result.number;
+                if (num >= 1 && num <= 18) {
+                    stats[num].appearances++;
+                }
+            });
+        });
+
+        for (let i = 1; i <= 18; i++) {
+            if (stats[i].appearances > 0) {
+                stats[i].hitRate = (stats[i].hits / stats[i].appearances) * 100;
+                if (stats[i].payouts.length > 0) {
+                    stats[i].averagePayout = stats[i].payouts.reduce((a, b) => a + b, 0) / stats[i].payouts.length;
+                    stats[i].minPayout = Math.min(...stats[i].payouts);
+                    stats[i].maxPayout = Math.max(...stats[i].payouts);
+                    stats[i].expectedValue = (stats[i].hitRate * stats[i].averagePayout) / 100;
+                }
+            }
+        }
+
+        return { stats, totalRaces: this.filteredRaces.length };
+    }
+
+    // 3連単の馬番別統計
+    calculateHorseNumberSanrentanStats() {
+        const stats = {};
+        for (let i = 1; i <= 18; i++) {
+            stats[i] = {
+                horseNumber: i,
+                appearances: 0,
+                hits: 0,
+                hitRate: 0,
+                payouts: [],
+                averagePayout: 0,
+                expectedValue: 0,
+                minPayout: 0,
+                maxPayout: 0
+            };
+        }
+
+        this.filteredRaces.forEach(race => {
+            const placedHorses = race.results.filter(r => r.position >= 1 && r.position <= 3);
+
+            placedHorses.forEach(horse => {
+                const num = horse.number;
+                if (num >= 1 && num <= 18) {
+                    stats[num].hits++;
+
+                    if (race.payouts?.sanrentan && Array.isArray(race.payouts.sanrentan)) {
+                        race.payouts.sanrentan.forEach(sanrentan => {
+                            if (sanrentan.combination && sanrentan.combination.includes(num)) {
+                                stats[num].payouts.push(sanrentan.payout);
+                            }
+                        });
+                    }
+                }
+            });
+
+            race.results.forEach(result => {
+                const num = result.number;
+                if (num >= 1 && num <= 18) {
+                    stats[num].appearances++;
+                }
+            });
+        });
+
+        for (let i = 1; i <= 18; i++) {
+            if (stats[i].appearances > 0) {
+                stats[i].hitRate = (stats[i].hits / stats[i].appearances) * 100;
+                if (stats[i].payouts.length > 0) {
+                    stats[i].averagePayout = stats[i].payouts.reduce((a, b) => a + b, 0) / stats[i].payouts.length;
+                    stats[i].minPayout = Math.min(...stats[i].payouts);
+                    stats[i].maxPayout = Math.max(...stats[i].payouts);
+                    stats[i].expectedValue = (stats[i].hitRate * stats[i].averagePayout) / 100;
+                }
+            }
+        }
+
+        return { stats, totalRaces: this.filteredRaces.length };
+    }
+
+    // 馬番統計の直近 vs 全期間比較
+    calculateHorseNumberComparison(ticketType, recentRaceCount) {
+        const sortedRaces = [...this.filteredRaces].sort((a, b) =>
+            new Date(a.date) - new Date(b.date)
+        );
+
+        if (sortedRaces.length === 0) {
+            return { error: 'データがありません' };
+        }
+
+        if (sortedRaces.length < recentRaceCount) {
+            return { error: `データ不足: 全${sortedRaces.length}レース（${recentRaceCount}レース以上必要）` };
+        }
+
+        // 全期間の統計
+        const allPeriodStats = new Statistics(sortedRaces);
+        let allPeriodResult;
+
+        // 馬券種別で計算関数を選択
+        switch(ticketType) {
+            case 'tansho':
+                allPeriodResult = allPeriodStats.calculateHorseNumberTanshoStats();
+                break;
+            case 'fukusho':
+                allPeriodResult = allPeriodStats.calculateHorseNumberFukushoStats();
+                break;
+            case 'umaren':
+                allPeriodResult = allPeriodStats.calculateHorseNumberUmarenStats();
+                break;
+            case 'umatan':
+                allPeriodResult = allPeriodStats.calculateHorseNumberUmatanStats();
+                break;
+            case 'wide':
+                allPeriodResult = allPeriodStats.calculateHorseNumberWideStats();
+                break;
+            case 'sanrenpuku':
+                allPeriodResult = allPeriodStats.calculateHorseNumberSanrenpukuStats();
+                break;
+            case 'sanrentan':
+                allPeriodResult = allPeriodStats.calculateHorseNumberSanrentanStats();
+                break;
+            default:
+                return { error: '不明な馬券種別' };
+        }
+
+        // 直近レースの統計
+        const recentRaces = sortedRaces.slice(-recentRaceCount);
+        const recentStats = new Statistics(recentRaces);
+        let recentResult;
+
+        switch(ticketType) {
+            case 'tansho':
+                recentResult = recentStats.calculateHorseNumberTanshoStats();
+                break;
+            case 'fukusho':
+                recentResult = recentStats.calculateHorseNumberFukushoStats();
+                break;
+            case 'umaren':
+                recentResult = recentStats.calculateHorseNumberUmarenStats();
+                break;
+            case 'umatan':
+                recentResult = recentStats.calculateHorseNumberUmatanStats();
+                break;
+            case 'wide':
+                recentResult = recentStats.calculateHorseNumberWideStats();
+                break;
+            case 'sanrenpuku':
+                recentResult = recentStats.calculateHorseNumberSanrenpukuStats();
+                break;
+            case 'sanrentan':
+                recentResult = recentStats.calculateHorseNumberSanrentanStats();
+                break;
+        }
+
+        // 比較データ作成
+        const comparisons = [];
+        const allStats = allPeriodResult.stats;
+        const recStats = recentResult.stats;
+
+        for (let num = 1; num <= 18; num++) {
+            const allStat = allStats[num];
+            const recentStat = recStats[num];
+
+            if (allStat && recentStat &&
+                ((allStat.wins > 0 || allStat.hits > 0) &&
+                 (recentStat.wins > 0 || recentStat.hits > 0))) {
+
+                const delta = recentStat.expectedValue - allStat.expectedValue;
+                const deltaPercent = allStat.expectedValue > 0 ?
+                    (delta / allStat.expectedValue) * 100 : 0;
+
+                comparisons.push({
+                    horseNumber: num,
+                    allPeriod: {
+                        expectedValue: allStat.expectedValue,
+                        wins: allStat.wins || allStat.hits,
+                        winRate: allStat.winRate || allStat.hitRate,
+                        averagePayout: allStat.averagePayout
+                    },
+                    recent: {
+                        expectedValue: recentStat.expectedValue,
+                        wins: recentStat.wins || recentStat.hits,
+                        winRate: recentStat.winRate || recentStat.hitRate,
+                        averagePayout: recentStat.averagePayout
+                    },
+                    delta: delta,
+                    deltaPercent: deltaPercent,
+                    trend: Math.abs(delta) < 5 ? 'stable' : (delta > 0 ? 'improving' : 'declining'),
+                    sampleSizeRecent: recentStat.wins || recentStat.hits,
+                    sampleSizeAll: allStat.wins || allStat.hits
+                });
+            }
+        }
+
+        return {
+            comparisons: comparisons,
+            totalRaces: sortedRaces.length,
+            recentRaceCount: recentRaceCount,
+            recentDateRange: {
+                start: recentRaces[0].date,
+                end: recentRaces[recentRaces.length - 1].date
+            }
+        };
+    }
 }

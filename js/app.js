@@ -134,6 +134,13 @@ class AdvancedRaceAnalyzer {
                 this.updateTicketPopularityAnalysis();
             }
         });
+
+        // 馬番統計の馬券種別セレクター
+        document.getElementById('horseNumberTicketTypeSelector')?.addEventListener('change', () => {
+            if (this.currentTab === 'horse-number-stats') {
+                this.updateHorseNumberAnalysis();
+            }
+        });
     }
 
     bindCalculatorEvents() {
@@ -708,6 +715,9 @@ class AdvancedRaceAnalyzer {
                 break;
             case 'ticket-popularity':
                 this.updateTicketPopularityAnalysis();
+                break;
+            case 'horse-number-stats':
+                this.updateHorseNumberAnalysis();
                 break;
             default:
                 console.log('⚠️ 未知のタブ:', this.currentTab);
@@ -2738,17 +2748,323 @@ class AdvancedRaceAnalyzer {
         this.parsedRaces = [...this.allRaces];
         this.filteredRaces = [...this.allRaces];
         console.log('✅ allRaces, parsedRaces, filteredRacesに設定:', this.allRaces.length);
-        
+
         this.updateDistanceFilter();
         console.log('✅ 距離フィルター更新完了');
-        
+
         this.showSections();
         console.log('✅ セクション表示完了');
-        
+
         this.applyFilters();
         console.log('✅ フィルター適用完了');
-        
+
         Utils.showSuccess(`${allRacesData.length}レースのデータを分析対象に設定しました`);
+    }
+
+    // ==================== 馬番統計メソッド ====================
+
+    // 馬番統計タブの更新
+    updateHorseNumberAnalysis() {
+        console.log('🐴 馬番統計タブ更新');
+
+        const ticketType = document.getElementById('horseNumberTicketTypeSelector').value;
+        const statistics = new Statistics(this.filteredRaces);
+
+        let result;
+        const ticketTypeNames = {
+            'tansho': '単勝',
+            'fukusho': '複勝',
+            'umaren': '馬連',
+            'umatan': '馬単',
+            'wide': 'ワイド',
+            'sanrenpuku': '3連複',
+            'sanrentan': '3連単'
+        };
+
+        switch (ticketType) {
+            case 'tansho':
+                result = statistics.calculateHorseNumberTanshoStats();
+                break;
+            case 'fukusho':
+                result = statistics.calculateHorseNumberFukushoStats();
+                break;
+            case 'umaren':
+                result = statistics.calculateHorseNumberUmarenStats();
+                break;
+            case 'umatan':
+                result = statistics.calculateHorseNumberUmatanStats();
+                break;
+            case 'wide':
+                result = statistics.calculateHorseNumberWideStats();
+                break;
+            case 'sanrenpuku':
+                result = statistics.calculateHorseNumberSanrenpukuStats();
+                break;
+            case 'sanrentan':
+                result = statistics.calculateHorseNumberSanrentanStats();
+                break;
+        }
+
+        const { stats } = result;
+        const validStats = Object.entries(stats)
+            .filter(([num, stat]) => stat.total > 0 || stat.appearances > 0)
+            .map(([num, stat]) => stat)
+            .sort((a, b) => b.expectedValue - a.expectedValue);
+
+        // タイトル更新
+        const typeName = ticketTypeNames[ticketType];
+        document.getElementById('horseNumberChartTitle').textContent
+            = `${typeName}の馬番別期待値`;
+        document.getElementById('horseNumberTableTitle').textContent
+            = `${typeName}の馬番別統計`;
+
+        this.createHorseNumberChart(validStats, typeName);
+        this.displayHorseNumberStats(validStats, ticketType);
+    }
+
+    // 馬番統計チャート作成
+    createHorseNumberChart(stats, ticketTypeName) {
+        const canvas = document.getElementById('horseNumberChart');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+
+        // 既存チャート破棄
+        if (this.horseNumberChart) {
+            this.horseNumberChart.destroy();
+        }
+
+        // 馬番順にソート（1-18）
+        const sortedStats = [...stats].sort((a, b) => a.horseNumber - b.horseNumber);
+
+        const labels = sortedStats.map(s => `${s.horseNumber}番`);
+        const expectedValues = sortedStats.map(s => s.expectedValue);
+
+        // 期待値100%を超えるかどうかで色分け
+        const backgroundColors = expectedValues.map(ev =>
+            ev > 100 ? 'rgba(34, 197, 94, 0.6)' : 'rgba(59, 130, 246, 0.6)'
+        );
+        const borderColors = expectedValues.map(ev =>
+            ev > 100 ? 'rgba(34, 197, 94, 1)' : 'rgba(59, 130, 246, 1)'
+        );
+
+        this.horseNumberChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '期待値 (%)',
+                    data: expectedValues,
+                    backgroundColor: backgroundColors,
+                    borderColor: borderColors,
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 2,
+                plugins: {
+                    legend: { display: false },
+                    title: {
+                        display: true,
+                        text: `${ticketTypeName} 馬番別期待値分布`
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const stat = sortedStats[context.dataIndex];
+                                return [
+                                    `期待値: ${stat.expectedValue.toFixed(1)}%`,
+                                    `的中率: ${(stat.winRate || stat.hitRate).toFixed(1)}%`,
+                                    `平均配当: ${stat.averagePayout.toFixed(0)}円`,
+                                    `出走数: ${stat.total || stat.appearances}回`
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: '期待値 (%)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: '馬番'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // 馬番統計テーブル表示
+    displayHorseNumberStats(stats, ticketType) {
+        const tbody = document.getElementById('horseNumberTableBody');
+        if (!tbody) return;
+
+        // 期待値降順でソート
+        const sortedStats = [...stats].sort((a, b) => b.expectedValue - a.expectedValue);
+
+        let html = '';
+        sortedStats.forEach(stat => {
+            const rate = ticketType === 'tansho' || ticketType === 'fukusho'
+                ? stat.winRate
+                : stat.hitRate;
+            const total = stat.total || stat.appearances;
+            const hits = stat.wins || stat.hits;
+
+            const evClass = stat.expectedValue > 100 ? 'positive' : '';
+
+            html += `
+                <tr>
+                    <td><strong>${stat.horseNumber}番</strong></td>
+                    <td>${total}回</td>
+                    <td>${hits}回</td>
+                    <td>${rate.toFixed(1)}%</td>
+                    <td>${stat.averagePayout.toFixed(0)}円</td>
+                    <td class="${evClass}"><strong>${stat.expectedValue.toFixed(1)}%</strong></td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+    }
+
+    // 馬番統計の直近比較実行
+    runHorseNumberComparison() {
+        console.log('📊 馬番統計 直近傾向分析開始');
+
+        const ticketType = document.getElementById('horseNumberTicketTypeSelector').value;
+        const recentRaceCount = parseInt(document.getElementById('horseNumberRecentRaces').value) || 50;
+
+        const statistics = new Statistics(this.filteredRaces);
+        const result = statistics.calculateHorseNumberComparison(ticketType, recentRaceCount);
+
+        if (result.error) {
+            document.getElementById('horseNumberComparisonResult').innerHTML = `
+                <div class="alert alert-warning">${result.error}</div>
+            `;
+            return;
+        }
+
+        this.displayHorseNumberComparison(result, ticketType);
+        console.log('✅ 馬番統計 直近傾向分析完了');
+    }
+
+    // 馬番統計の比較結果表示
+    displayHorseNumberComparison(result, ticketType) {
+        const container = document.getElementById('horseNumberComparisonResult');
+        if (!container) return;
+
+        const { comparisons, totalRaces, recentRaceCount, recentDateRange } = result;
+
+        // デルタの絶対値でソート（変化が大きい順）
+        const sortedComparisons = [...comparisons].sort((a, b) =>
+            Math.abs(b.delta) - Math.abs(a.delta)
+        );
+
+        const ticketTypeNames = {
+            'tansho': '単勝',
+            'fukusho': '複勝',
+            'umaren': '馬連',
+            'umatan': '馬単',
+            'wide': 'ワイド',
+            'sanrenpuku': '3連複',
+            'sanrentan': '3連単'
+        };
+
+        let html = `
+            <div class="comparison-summary">
+                <p><strong>分析期間:</strong> 全${totalRaces}レース（直近${recentRaceCount}レース: ${recentDateRange.start} ～ ${recentDateRange.end}）</p>
+            </div>
+
+            <div class="comparison-table-container">
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>馬番</th>
+                            <th>全期間<br>期待値</th>
+                            <th>直近${recentRaceCount}R<br>期待値</th>
+                            <th>差分<br>(デルタ)</th>
+                            <th>変化率</th>
+                            <th>傾向</th>
+                            <th>直近<br>サンプル数</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        sortedComparisons.forEach(comp => {
+            const trendIcon = comp.trend === 'improving' ? '↑' :
+                             comp.trend === 'declining' ? '↓' : '→';
+            const trendClass = comp.trend === 'improving' ? 'trend-up' :
+                              comp.trend === 'declining' ? 'trend-down' : '';
+
+            html += `
+                <tr class="${trendClass}">
+                    <td><strong>${comp.horseNumber}番</strong></td>
+                    <td>${comp.allPeriod.expectedValue.toFixed(1)}%</td>
+                    <td>${comp.recent.expectedValue.toFixed(1)}%</td>
+                    <td class="${comp.delta >= 0 ? 'positive' : 'negative'}">
+                        ${comp.delta >= 0 ? '+' : ''}${comp.delta.toFixed(1)}%
+                    </td>
+                    <td>${comp.deltaPercent >= 0 ? '+' : ''}${comp.deltaPercent.toFixed(1)}%</td>
+                    <td>${trendIcon} ${comp.trend === 'improving' ? '上昇' : comp.trend === 'declining' ? '下降' : '安定'}</td>
+                    <td>${comp.sampleSizeRecent}</td>
+                </tr>
+            `;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="insights-section">
+                <h5>📈 主な傾向</h5>
+        `;
+
+        // 上昇傾向トップ3
+        const improving = sortedComparisons
+            .filter(c => c.trend === 'improving')
+            .sort((a, b) => b.delta - a.delta)
+            .slice(0, 3);
+
+        if (improving.length > 0) {
+            html += '<div class="insight-box insight-improving">';
+            html += '<strong>🔥 期待値上昇中:</strong><br>';
+            improving.forEach(c => {
+                html += `${c.horseNumber}番: ${c.allPeriod.expectedValue.toFixed(1)}% → ${c.recent.expectedValue.toFixed(1)}% (+${c.delta.toFixed(1)}%)<br>`;
+            });
+            html += '</div>';
+        }
+
+        // 下降傾向トップ3
+        const declining = sortedComparisons
+            .filter(c => c.trend === 'declining')
+            .sort((a, b) => a.delta - b.delta)
+            .slice(0, 3);
+
+        if (declining.length > 0) {
+            html += '<div class="insight-box insight-declining">';
+            html += '<strong>❄️ 期待値下降中:</strong><br>';
+            declining.forEach(c => {
+                html += `${c.horseNumber}番: ${c.allPeriod.expectedValue.toFixed(1)}% → ${c.recent.expectedValue.toFixed(1)}% (${c.delta.toFixed(1)}%)<br>`;
+            });
+            html += '</div>';
+        }
+
+        html += `
+            </div>
+        `;
+
+        container.innerHTML = html;
     }
 }
 
