@@ -1,0 +1,33 @@
+# Netlify デプロイ対象外ファイル
+# このファイルに記載されたファイル/ディレクトリはNetlifyにアップロードされません
+
+# Chrome拡張機能（別途Chrome Web Storeで公開）
+extension/
+
+# Python検証スクリプト（開発用）
+check_data.py
+check_data2.py
+kitaiti.py
+*.pyc
+__pycache__/
+
+# プロジェクト管理ファイル
+.kiro/
+.claude/
+
+# 古いバージョン（keiba-app/が残っている場合）
+keiba-app/
+
+# README（必要に応じてコメントアウト）
+# README.md
+
+# Git関連
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD設定（デプロイには不要）
+.github/
+
+# ドキュメント（必要に応じて）
+CLAUDE.md

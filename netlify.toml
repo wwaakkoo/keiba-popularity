@@ -1,8 +1,37 @@
 [build]
   publish = "."
   command = "echo 'No build required'"
+  # デプロイ対象外のファイルを除外
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF ."
 
+[build.environment]
+  # ビルド環境変数（必要に応じて）
+  NODE_VERSION = "18"
+
+# 不要なファイルをデプロイから除外
+[build.processing]
+  skip_processing = false
+
+[build.processing.css]
+  bundle = false
+  minify = false
+
+[build.processing.js]
+  bundle = false
+  minify = false
+
+[build.processing.html]
+  pretty_urls = true
+
+[build.processing.images]
+  compress = false
+
+# SPAのルーティング設定（既存）
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+# デプロイ対象外のパスを設定
+# 注意: Netlifyは.gitignoreを自動的に尊重しますが、明示的に除外も可能
+# extension/, .claude/, Pythonスクリプト等は公開不要

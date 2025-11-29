@@ -13,3 +13,19 @@ Thumbs.db
 
 # Temporary files
 *.tmp
+
+# Development tools (not needed for deployment)
+check_data.py
+check_data2.py
+kitaiti.py
+*.pyc
+__pycache__/
+
+# Project management (local only)
+.kiro/
+.claude/settings.local.json
+
+# Chrome Extension (separate deployment)
+# extension/ は gitには含めるが、Netlifyでは公開不要
+# （コメントアウト: gitで管理するため）
+# extension/
