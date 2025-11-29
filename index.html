@@ -260,7 +260,7 @@
                             <button class="tab-btn" data-tab="sanrenpuku">3連複期待値</button>
                             <button class="tab-btn" data-tab="sanrentan">3連単期待値</button>
                             <button class="tab-btn" data-tab="ticket-popularity">🎫 馬券人気統計</button>
-                            <button class="tab-btn" data-tab="horse-number-stats">🐴 馬番統計</button>
+                            <button class="tab-btn" data-tab="horse-number-stats">🐴 馬番パターン統計</button>
                         </div>
                     </div>
                     <div class="card__body">
@@ -989,89 +989,110 @@
                             </div>
                         </div>
 
-                        <!-- 馬番統計タブ -->
+                        <!-- 馬番パターン統計タブ -->
                         <div class="tab-content" id="horse-number-stats-tab">
-                            <div class="info-box info-box--info">
-                                <h3>📊 馬番統計について</h3>
-                                <p>各馬番（1番～18番）が各馬券種でどのような成績を残しているかを分析します。</p>
-                                <ul>
-                                    <li>単勝・複勝: 該当馬番の1着率・連対率、平均配当、期待値</li>
-                                    <li>馬連～3連単: 該当馬番が絡んだ際の成績、平均配当、期待値</li>
-                                    <li>期待値 = 的中率 × 平均配当 ÷ 100</li>
-                                </ul>
-                            </div>
-
-                            <div class="ticket-type-selector">
-                                <label class="form-label">馬券種別を選択</label>
-                                <select id="horseNumberTicketTypeSelector" class="form-control">
-                                    <option value="tansho">単勝</option>
-                                    <option value="fukusho">複勝</option>
-                                    <option value="umaren">馬連</option>
-                                    <option value="umatan">馬単</option>
-                                    <option value="wide">ワイド</option>
-                                    <option value="sanrenpuku">3連複</option>
-                                    <option value="sanrentan">3連単</option>
-                                </select>
-                            </div>
-
-                            <div class="analysis-grid">
-                                <div class="chart-container">
-                                    <h4 id="horseNumberChartTitle">馬番別期待値</h4>
-                                    <canvas id="horseNumberChart"></canvas>
-                                </div>
-
-                                <div class="table-container">
-                                    <h4 id="horseNumberTableTitle">馬番別統計</h4>
-                                    <div class="table-responsive">
-                                        <table class="stats-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>馬番</th>
-                                                    <th>出走数</th>
-                                                    <th>的中数</th>
-                                                    <th>的中率</th>
-                                                    <th>平均配当</th>
-                                                    <th>期待値</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="horseNumberTableBody"></tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="info-box info-box--tip">
-                                <h4>💡 活用のヒント</h4>
-                                <ul>
-                                    <li>内枠（1-4番）と外枠（15-18番）の成績差を確認</li>
-                                    <li>期待値が100%を超える馬番を探す</li>
-                                    <li>出走数が少ない馬番は統計的に信頼度が低い点に注意</li>
-                                </ul>
-                            </div>
-
-                            <!-- 直近傾向分析セクション -->
-                            <div class="recent-analysis-section">
-                                <h4>📊 直近傾向分析（直近 vs 全期間）</h4>
+                            <div class="horse-pattern-section">
                                 <div class="info-box info-box--info">
-                                    <p><strong>直近傾向分析について</strong></p>
-                                    <p>直近Xレースの期待値と全期間の期待値を比較し、「今、どの馬番が調子が良いか」を確認できます。</p>
-                                    <p>差分（デルタ）がプラス = 直近は通常より好調、マイナス = 不調を意味します。</p>
+                                    <p><strong>🐴 馬番パターン統計について</strong></p>
+                                    <p>馬番の組み合わせパターン（例：1-3番の馬連、1→3→5の3連単など）の的中率と期待値を表示します。</p>
+                                    <p>例：1番と3番の馬連の組み合わせが、全レース中何回出走可能で、何回的中したかを集計します。</p>
                                 </div>
 
-                                <div class="recent-controls">
+                                <div class="ticket-type-selector">
+                                    <label class="form-label">馬券種別を選択</label>
+                                    <select id="horsePatternTicketTypeSelector" class="form-control">
+                                        <option value="tansho">単勝</option>
+                                        <option value="fukusho">複勝</option>
+                                        <option value="umaren">馬連</option>
+                                        <option value="umatan">馬単</option>
+                                        <option value="wide">ワイド</option>
+                                        <option value="sanrenpuku">3連複</option>
+                                        <option value="sanrentan">3連単</option>
+                                    </select>
+                                </div>
+
+                                <div class="filter-section" style="margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 5px;">
+                                    <h4 style="margin-top: 0;">🔍 カスタムフィルタ</h4>
                                     <div class="form-group">
-                                        <label class="form-label">直近レース数</label>
-                                        <input type="number" id="horseNumberRecentRaces" class="form-control" value="50" min="10" max="500">
-                                        <small class="form-text">比較対象とする直近のレース数（デフォルト：50レース）</small>
+                                        <label class="form-label">特定の馬番で絞り込み（カンマ区切り、例: 1,3,5）</label>
+                                        <input type="text" id="horsePatternFilter" class="form-control" placeholder="例: 1,3,5 または 1-3,5-7">
+                                        <small class="form-text">空欄の場合は全パターン表示。単勝・複勝は単一番号、組み合わせ券は複数番号を指定</small>
+                                    </div>
+                                    <button class="btn btn--primary" onclick="analyzer.updateHorsePatternAnalysis()">フィルタ適用</button>
+                                </div>
+
+                                <div class="analysis-grid">
+                                    <div class="chart-container">
+                                        <h4 id="horsePatternChartTitle">馬連の馬番パターン別期待値</h4>
+                                        <div class="chart-wrapper" style="position: relative; height: 400px;">
+                                            <canvas id="horsePatternChart"></canvas>
+                                        </div>
                                     </div>
 
-                                    <button class="btn btn--primary" onclick="analyzer.runHorseNumberComparison()">
-                                        分析実行
-                                    </button>
+                                    <div class="table-container">
+                                        <h4 id="horsePatternTableTitle">馬連の馬番パターン別統計</h4>
+                                        <div class="table-wrapper">
+                                            <table id="horsePatternTable" class="stats-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>馬番パターン</th>
+                                                        <th>出走可能数</th>
+                                                        <th>的中数</th>
+                                                        <th>的中率</th>
+                                                        <th>平均配当</th>
+                                                        <th>期待値</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="horsePatternTableBody">
+                                                    <!-- データがJavaScriptで挿入されます -->
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div id="horseNumberComparisonResult">
-                                    <!-- 結果がJavaScriptで挿入されます -->
+                                <div class="info-box info-box--warning">
+                                    <p><strong>⚠️ 注意事項</strong></p>
+                                    <ul>
+                                        <li>払い戻しデータに馬番パターンが含まれている場合のみ表示されます</li>
+                                        <li>取消馬が含まれるレースでは、その馬番の組み合わせは出走可能数に含まれません</li>
+                                        <li>出走可能数が少ないパターンは統計的に信頼度が低い点に注意</li>
+                                    </ul>
+                                </div>
+
+                                <div class="info-box info-box--tip">
+                                    <h4>💡 活用のヒント</h4>
+                                    <ul>
+                                        <li>内枠同士（1-2番など）と外枠同士（17-18番など）の組み合わせの成績差を確認</li>
+                                        <li>期待値が100%を超えるパターンを探す</li>
+                                        <li>特定の馬番の組み合わせに偏りがないか確認</li>
+                                    </ul>
+                                </div>
+
+                                <!-- 直近傾向分析セクション -->
+                                <div class="recent-analysis-section" style="margin-top: 30px;">
+                                    <h4>📊 直近傾向分析（直近 vs 全期間）</h4>
+                                    <div class="info-box info-box--info">
+                                        <p><strong>直近傾向分析について</strong></p>
+                                        <p>直近Xレースの期待値と全期間の期待値を比較し、「今、どの馬番パターンが調子が良いか」を確認できます。</p>
+                                        <p>差分（デルタ）がプラス = 直近は通常より好調、マイナス = 不調を意味します。</p>
+                                    </div>
+
+                                    <div class="recent-controls" style="margin: 15px 0;">
+                                        <div class="form-group">
+                                            <label class="form-label">直近レース数</label>
+                                            <input type="number" id="horsePatternRecentRaces" class="form-control" value="50" min="10" max="500">
+                                            <small class="form-text">比較対象とする直近のレース数（デフォルト：50レース）</small>
+                                        </div>
+
+                                        <button class="btn btn--primary" onclick="analyzer.runHorsePatternComparison()">
+                                            分析実行
+                                        </button>
+                                    </div>
+
+                                    <div id="horsePatternComparisonResult">
+                                        <!-- 結果がJavaScriptで挿入されます -->
+                                    </div>
                                 </div>
                             </div>
                         </div>

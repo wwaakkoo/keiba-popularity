@@ -37,16 +37,29 @@ class Statistics {
             };
         }
         
-        // 各レースの1着結果を処理
-        results.forEach(result => {
-            if (result.position === 1 && result.popularity) {
-                const pop = result.popularity;
-                if (pop >= 1 && pop <= 16) {
-                    stats[pop].wins++;
-                }
+        // 各レースで存在する人気のみをカウント（頭立て数-取消馬数から算出）
+        this.filteredRaces.forEach(race => {
+            // 実際の出走数を計算（頭立て数 - 取消馬数）
+            let actualRunners = race.horseCount || 18;  // デフォルト18
+
+            // 取消馬を引く
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                actualRunners -= race.canceledHorses.length;
+            }
+
+            // 1人気から実出走数人気までカウント（最大16人気まで）
+            const maxPopularity = Math.min(actualRunners, 16);
+            for (let pop = 1; pop <= maxPopularity; pop++) {
+                stats[pop].total++;
+            }
+
+            // 1着判定
+            const winner = race.results.find(r => r.position === 1);
+            if (winner && winner.popularity >= 1 && winner.popularity <= 16) {
+                stats[winner.popularity].wins++;
             }
         });
-        
+
         // 払い戻しデータから配当を集計
         this.filteredRaces.forEach(race => {
             if (race.payouts && race.payouts.tansho) {
@@ -56,11 +69,10 @@ class Statistics {
                 }
             }
         });
-        
+
         // 統計値を計算
-        const totalRaces = this.filteredRaces.length;
         for (let i = 1; i <= 16; i++) {
-            stats[i].total = totalRaces;
+            // totalは各レースで実際に存在した人気のみカウント済み
             stats[i].payoutCount = stats[i].payouts.length;
             
             if (stats[i].total > 0) {
@@ -106,20 +118,28 @@ class Statistics {
         // 各レースの結果を処理
         this.filteredRaces.forEach(race => {
             if (race.results.length >= 3) {
+                // 実際の出走数を計算（頭立て数 - 取消馬数）
+                let actualRunners = race.horseCount || 18;  // デフォルト18
+
+                // 取消馬を引く
+                if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                    actualRunners -= race.canceledHorses.length;
+                }
+
                 // 3着以内の人気を取得
                 const top3Popularities = race.results.slice(0, 3).map(r => r.popularity).filter(p => p);
-                
-                // 各人気の複勝判定
-                for (let pop = 1; pop <= 16; pop++) {
-                    const isHit = top3Popularities.includes(pop);
+
+                // 1人気から実出走数人気までカウント（最大16人気まで）
+                const maxPopularity = Math.min(actualRunners, 16);
+                for (let pop = 1; pop <= maxPopularity; pop++) {
                     stats[pop].total++;
-                    
-                    if (isHit) {
+
+                    if (top3Popularities.includes(pop)) {
                         stats[pop].hits++;
                     }
                 }
             }
-            
+
             // 払い戻しデータから配当を集計
             if (race.payouts && race.payouts.fukusho) {
                 race.payouts.fukusho.forEach(fukusho => {
@@ -653,7 +673,6 @@ class Statistics {
     // 馬券自体の人気による統計（馬連）
     calculateUmarenTicketPopularityStats() {
         const stats = {};
-        let totalWithPopularity = 0;
 
         // 初期化（1-300人気まで対応）
         for (let i = 1; i <= 300; i++) {
@@ -671,22 +690,39 @@ class Statistics {
             };
         }
 
+        // 各レースで実出走数から最大人気を計算してtotalをインクリメント
         this.filteredRaces.forEach(race => {
+            // 実出走数を計算（取消馬を除外）
+            let actualRunners = race.horseCount || 18;
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                actualRunners -= race.canceledHorses.length;
+            }
+
+            // 馬連の最大人気を計算（nC2 = n(n-1)/2）
+            let maxPopularity = Math.floor(actualRunners * (actualRunners - 1) / 2);
+            // 配列上限で制限
+            maxPopularity = Math.min(maxPopularity, 300);
+
+            // 1〜maxPopularityまでtotalをインクリメント
+            for (let pop = 1; pop <= maxPopularity; pop++) {
+                stats[pop].total++;
+            }
+
+            // 的中判定と配当集計
             if (race.payouts && race.payouts.umaren && Array.isArray(race.payouts.umaren)) {
                 race.payouts.umaren.forEach(umaren => {
                     const pop = umaren.ticketPopularity;
                     if (pop && pop >= 1 && pop <= 300) {
                         stats[pop].wins++;
                         stats[pop].payouts.push(umaren.payout);
-                        totalWithPopularity++;
                     }
                 });
             }
         });
 
         // 統計値を計算
+        let totalWithPopularity = 0;
         for (let i = 1; i <= 300; i++) {
-            stats[i].total = totalWithPopularity;
             stats[i].payoutCount = stats[i].payouts.length;
 
             if (stats[i].total > 0) {
@@ -697,6 +733,7 @@ class Statistics {
                     stats[i].averagePayout = sum / stats[i].payouts.length;
                     stats[i].minPayout = Math.min(...stats[i].payouts);
                     stats[i].maxPayout = Math.max(...stats[i].payouts);
+                    totalWithPopularity++;
                 } else {
                     stats[i].averagePayout = 100;
                 }
@@ -711,7 +748,6 @@ class Statistics {
     // 馬券自体の人気による統計（馬単）
     calculateUmatanTicketPopularityStats() {
         const stats = {};
-        let totalWithPopularity = 0;
 
         for (let i = 1; i <= 300; i++) {
             stats[i] = {
@@ -728,21 +764,39 @@ class Statistics {
             };
         }
 
+        // 各レースで実出走数から最大人気を計算してtotalをインクリメント
         this.filteredRaces.forEach(race => {
+            // 実出走数を計算（取消馬を除外）
+            let actualRunners = race.horseCount || 18;
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                actualRunners -= race.canceledHorses.length;
+            }
+
+            // 馬単の最大人気を計算（nP2 = n(n-1)）
+            let maxPopularity = actualRunners * (actualRunners - 1);
+            // 配列上限で制限
+            maxPopularity = Math.min(maxPopularity, 300);
+
+            // 1〜maxPopularityまでtotalをインクリメント
+            for (let pop = 1; pop <= maxPopularity; pop++) {
+                stats[pop].total++;
+            }
+
+            // 的中判定と配当集計
             if (race.payouts && race.payouts.umatan && Array.isArray(race.payouts.umatan)) {
                 race.payouts.umatan.forEach(umatan => {
                     const pop = umatan.ticketPopularity;
                     if (pop && pop >= 1 && pop <= 300) {
                         stats[pop].wins++;
                         stats[pop].payouts.push(umatan.payout);
-                        totalWithPopularity++;
                     }
                 });
             }
         });
 
+        // 統計値を計算
+        let totalWithPopularity = 0;
         for (let i = 1; i <= 300; i++) {
-            stats[i].total = totalWithPopularity;
             stats[i].payoutCount = stats[i].payouts.length;
 
             if (stats[i].total > 0) {
@@ -753,6 +807,7 @@ class Statistics {
                     stats[i].averagePayout = sum / stats[i].payouts.length;
                     stats[i].minPayout = Math.min(...stats[i].payouts);
                     stats[i].maxPayout = Math.max(...stats[i].payouts);
+                    totalWithPopularity++;
                 } else {
                     stats[i].averagePayout = 100;
                 }
@@ -767,7 +822,6 @@ class Statistics {
     // 馬券自体の人気による統計（ワイド）
     calculateWideTicketPopularityStats() {
         const stats = {};
-        let totalWithPopularity = 0;
 
         for (let i = 1; i <= 300; i++) {
             stats[i] = {
@@ -784,21 +838,39 @@ class Statistics {
             };
         }
 
+        // 各レースで実出走数から最大人気を計算してtotalをインクリメント
         this.filteredRaces.forEach(race => {
+            // 実出走数を計算（取消馬を除外）
+            let actualRunners = race.horseCount || 18;
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                actualRunners -= race.canceledHorses.length;
+            }
+
+            // ワイドの最大人気を計算（nC2 = n(n-1)/2）
+            let maxPopularity = Math.floor(actualRunners * (actualRunners - 1) / 2);
+            // 配列上限で制限
+            maxPopularity = Math.min(maxPopularity, 300);
+
+            // 1〜maxPopularityまでtotalをインクリメント
+            for (let pop = 1; pop <= maxPopularity; pop++) {
+                stats[pop].total++;
+            }
+
+            // 的中判定と配当集計
             if (race.payouts && race.payouts.wide && Array.isArray(race.payouts.wide)) {
                 race.payouts.wide.forEach(wide => {
                     const pop = wide.ticketPopularity;
                     if (pop && pop >= 1 && pop <= 300) {
                         stats[pop].wins++;
                         stats[pop].payouts.push(wide.payout);
-                        totalWithPopularity++;
                     }
                 });
             }
         });
 
+        // 統計値を計算
+        let totalWithPopularity = 0;
         for (let i = 1; i <= 300; i++) {
-            stats[i].total = totalWithPopularity;
             stats[i].payoutCount = stats[i].payouts.length;
 
             if (stats[i].total > 0) {
@@ -809,6 +881,7 @@ class Statistics {
                     stats[i].averagePayout = sum / stats[i].payouts.length;
                     stats[i].minPayout = Math.min(...stats[i].payouts);
                     stats[i].maxPayout = Math.max(...stats[i].payouts);
+                    totalWithPopularity++;
                 } else {
                     stats[i].averagePayout = 100;
                 }
@@ -823,7 +896,6 @@ class Statistics {
     // 馬券自体の人気による統計（3連複）
     calculateSanrenpukuTicketPopularityStats() {
         const stats = {};
-        let totalWithPopularity = 0;
 
         for (let i = 1; i <= 1000; i++) {
             stats[i] = {
@@ -840,21 +912,39 @@ class Statistics {
             };
         }
 
+        // 各レースで実出走数から最大人気を計算してtotalをインクリメント
         this.filteredRaces.forEach(race => {
+            // 実出走数を計算（取消馬を除外）
+            let actualRunners = race.horseCount || 18;
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                actualRunners -= race.canceledHorses.length;
+            }
+
+            // 3連複の最大人気を計算（nC3 = n(n-1)(n-2)/6）
+            let maxPopularity = Math.floor(actualRunners * (actualRunners - 1) * (actualRunners - 2) / 6);
+            // 配列上限で制限
+            maxPopularity = Math.min(maxPopularity, 1000);
+
+            // 1〜maxPopularityまでtotalをインクリメント
+            for (let pop = 1; pop <= maxPopularity; pop++) {
+                stats[pop].total++;
+            }
+
+            // 的中判定と配当集計
             if (race.payouts && race.payouts.sanrenpuku && Array.isArray(race.payouts.sanrenpuku)) {
                 race.payouts.sanrenpuku.forEach(sanrenpuku => {
                     const pop = sanrenpuku.ticketPopularity;
                     if (pop && pop >= 1 && pop <= 1000) {
                         stats[pop].wins++;
                         stats[pop].payouts.push(sanrenpuku.payout);
-                        totalWithPopularity++;
                     }
                 });
             }
         });
 
+        // 統計値を計算
+        let totalWithPopularity = 0;
         for (let i = 1; i <= 1000; i++) {
-            stats[i].total = totalWithPopularity;
             stats[i].payoutCount = stats[i].payouts.length;
 
             if (stats[i].total > 0) {
@@ -865,6 +955,7 @@ class Statistics {
                     stats[i].averagePayout = sum / stats[i].payouts.length;
                     stats[i].minPayout = Math.min(...stats[i].payouts);
                     stats[i].maxPayout = Math.max(...stats[i].payouts);
+                    totalWithPopularity++;
                 } else {
                     stats[i].averagePayout = 100;
                 }
@@ -879,7 +970,6 @@ class Statistics {
     // 馬券自体の人気による統計（3連単）
     calculateSanrentanTicketPopularityStats() {
         const stats = {};
-        let totalWithPopularity = 0;
 
         for (let i = 1; i <= 2000; i++) {
             stats[i] = {
@@ -896,21 +986,39 @@ class Statistics {
             };
         }
 
+        // 各レースで実出走数から最大人気を計算してtotalをインクリメント
         this.filteredRaces.forEach(race => {
+            // 実出走数を計算（取消馬を除外）
+            let actualRunners = race.horseCount || 18;
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                actualRunners -= race.canceledHorses.length;
+            }
+
+            // 3連単の最大人気を計算（nP3 = n(n-1)(n-2)）
+            let maxPopularity = actualRunners * (actualRunners - 1) * (actualRunners - 2);
+            // 配列上限で制限
+            maxPopularity = Math.min(maxPopularity, 2000);
+
+            // 1〜maxPopularityまでtotalをインクリメント
+            for (let pop = 1; pop <= maxPopularity; pop++) {
+                stats[pop].total++;
+            }
+
+            // 的中判定と配当集計
             if (race.payouts && race.payouts.sanrentan && Array.isArray(race.payouts.sanrentan)) {
                 race.payouts.sanrentan.forEach(sanrentan => {
                     const pop = sanrentan.ticketPopularity;
                     if (pop && pop >= 1 && pop <= 2000) {
                         stats[pop].wins++;
                         stats[pop].payouts.push(sanrentan.payout);
-                        totalWithPopularity++;
                     }
                 });
             }
         });
 
+        // 統計値を計算
+        let totalWithPopularity = 0;
         for (let i = 1; i <= 2000; i++) {
-            stats[i].total = totalWithPopularity;
             stats[i].payoutCount = stats[i].payouts.length;
 
             if (stats[i].total > 0) {
@@ -921,6 +1029,7 @@ class Statistics {
                     stats[i].averagePayout = sum / stats[i].payouts.length;
                     stats[i].minPayout = Math.min(...stats[i].payouts);
                     stats[i].maxPayout = Math.max(...stats[i].payouts);
+                    totalWithPopularity++;
                 } else {
                     stats[i].averagePayout = 100;
                 }
@@ -1322,9 +1431,27 @@ class Statistics {
                 }
             }
 
-            // 実出走回数をカウント
-            race.results.forEach(result => {
-                const num = result.number;
+            // 実出走回数をカウント（race.runnersまたはrace.resultsから取得）
+            let runnerNumbers = null;
+
+            // 優先度1: race.runnersフィールド（Chrome拡張で追加された正確な情報）
+            if (race.runners && Array.isArray(race.runners) && race.runners.length > 0) {
+                runnerNumbers = new Set(race.runners);
+            }
+            // 優先度2: race.resultsから推測（古いデータ用フォールバック）
+            else {
+                runnerNumbers = new Set(race.results.map(r => r.number));
+            }
+
+            // 取消馬を除外
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                race.canceledHorses.forEach(canceledNum => {
+                    runnerNumbers.delete(canceledNum);
+                });
+            }
+
+            // 実際に出走した馬番のみをカウント
+            runnerNumbers.forEach(num => {
                 if (num >= 1 && num <= 18) {
                     stats[num].total++;
                 }
@@ -1369,16 +1496,36 @@ class Statistics {
             // 1-3着の馬番を取得
             const placedHorses = race.results.filter(r => r.position >= 1 && r.position <= 3);
 
-            // 各馬番の的中判定（全馬番に対してレース数をカウント）
-            for (let num = 1; num <= 18; num++) {
-                stats[num].total++;  // 全ての馬番のtotalをカウント
+            // 出走馬番のリストを取得（優先順位付き）
+            let runnerNumbers = null;
 
-                // 1-3着に入っているかチェック
-                const isPlaced = placedHorses.some(h => h.number === num);
-                if (isPlaced) {
-                    stats[num].hits++;
-                }
+            // 優先度1: race.runnersフィールド（Chrome拡張で追加された正確な情報）
+            if (race.runners && Array.isArray(race.runners) && race.runners.length > 0) {
+                runnerNumbers = new Set(race.runners);
             }
+            // 優先度2: race.resultsから推測（古いデータ用フォールバック）
+            else {
+                runnerNumbers = new Set(race.results.map(r => r.number));
+            }
+
+            // 取消馬を除外
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                race.canceledHorses.forEach(canceledNum => {
+                    runnerNumbers.delete(canceledNum);
+                });
+            }
+
+            // 実際に出走した馬番のみをカウント
+            runnerNumbers.forEach(num => {
+                if (num >= 1 && num <= 18) {
+                    stats[num].total++;
+
+                    const isPlaced = placedHorses.some(h => h.number === num);
+                    if (isPlaced) {
+                        stats[num].hits++;
+                    }
+                }
+            });
 
             // 配当データ集計
             if (race.payouts?.fukusho && Array.isArray(race.payouts.fukusho)) {
@@ -1391,7 +1538,7 @@ class Statistics {
             }
         });
 
-        // 統計計算（全レース数を分母にする - 人気別統計と同じロジック）
+        // 統計計算（実際に出走したレース数を分母とする）
         for (let i = 1; i <= 18; i++) {
             if (stats[i].total > 0) {
                 stats[i].hitRate = (stats[i].hits / stats[i].total) * 100;
@@ -1448,9 +1595,27 @@ class Statistics {
                 });
             }
 
-            // 実出走回数をカウント
-            race.results.forEach(result => {
-                const num = result.number;
+            // 実出走回数をカウント（race.runnersまたはrace.resultsから取得）
+            let runnerNumbers = null;
+
+            // 優先度1: race.runnersフィールド（Chrome拡張で追加された正確な情報）
+            if (race.runners && Array.isArray(race.runners) && race.runners.length > 0) {
+                runnerNumbers = new Set(race.runners);
+            }
+            // 優先度2: race.resultsから推測（古いデータ用フォールバック）
+            else {
+                runnerNumbers = new Set(race.results.map(r => r.number));
+            }
+
+            // 取消馬を除外
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                race.canceledHorses.forEach(canceledNum => {
+                    runnerNumbers.delete(canceledNum);
+                });
+            }
+
+            // 実際に出走した馬番のみをカウント
+            runnerNumbers.forEach(num => {
                 if (num >= 1 && num <= 18) {
                     stats[num].appearances++;
                 }
@@ -1512,9 +1677,27 @@ class Statistics {
                 });
             }
 
-            // 実出走回数をカウント
-            race.results.forEach(result => {
-                const num = result.number;
+            // 実出走回数をカウント（race.runnersまたはrace.resultsから取得）
+            let runnerNumbers = null;
+
+            // 優先度1: race.runnersフィールド（Chrome拡張で追加された正確な情報）
+            if (race.runners && Array.isArray(race.runners) && race.runners.length > 0) {
+                runnerNumbers = new Set(race.runners);
+            }
+            // 優先度2: race.resultsから推測（古いデータ用フォールバック）
+            else {
+                runnerNumbers = new Set(race.results.map(r => r.number));
+            }
+
+            // 取消馬を除外
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                race.canceledHorses.forEach(canceledNum => {
+                    runnerNumbers.delete(canceledNum);
+                });
+            }
+
+            // 実際に出走した馬番のみをカウント
+            runnerNumbers.forEach(num => {
                 if (num >= 1 && num <= 18) {
                     stats[num].appearances++;
                 }
@@ -1572,9 +1755,27 @@ class Statistics {
                 }
             });
 
-            // 実出走回数をカウント
-            race.results.forEach(result => {
-                const num = result.number;
+            // 実出走回数をカウント（race.runnersまたはrace.resultsから取得）
+            let runnerNumbers = null;
+
+            // 優先度1: race.runnersフィールド（Chrome拡張で追加された正確な情報）
+            if (race.runners && Array.isArray(race.runners) && race.runners.length > 0) {
+                runnerNumbers = new Set(race.runners);
+            }
+            // 優先度2: race.resultsから推測（古いデータ用フォールバック）
+            else {
+                runnerNumbers = new Set(race.results.map(r => r.number));
+            }
+
+            // 取消馬を除外
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                race.canceledHorses.forEach(canceledNum => {
+                    runnerNumbers.delete(canceledNum);
+                });
+            }
+
+            // 実際に出走した馬番のみをカウント
+            runnerNumbers.forEach(num => {
                 if (num >= 1 && num <= 18) {
                     stats[num].appearances++;
                 }
@@ -1632,9 +1833,27 @@ class Statistics {
                 }
             });
 
-            // 実出走回数をカウント
-            race.results.forEach(result => {
-                const num = result.number;
+            // 実出走回数をカウント（race.runnersまたはrace.resultsから取得）
+            let runnerNumbers = null;
+
+            // 優先度1: race.runnersフィールド（Chrome拡張で追加された正確な情報）
+            if (race.runners && Array.isArray(race.runners) && race.runners.length > 0) {
+                runnerNumbers = new Set(race.runners);
+            }
+            // 優先度2: race.resultsから推測（古いデータ用フォールバック）
+            else {
+                runnerNumbers = new Set(race.results.map(r => r.number));
+            }
+
+            // 取消馬を除外
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                race.canceledHorses.forEach(canceledNum => {
+                    runnerNumbers.delete(canceledNum);
+                });
+            }
+
+            // 実際に出走した馬番のみをカウント
+            runnerNumbers.forEach(num => {
                 if (num >= 1 && num <= 18) {
                     stats[num].appearances++;
                 }
@@ -1692,9 +1911,27 @@ class Statistics {
                 }
             });
 
-            // 実出走回数をカウント
-            race.results.forEach(result => {
-                const num = result.number;
+            // 実出走回数をカウント（race.runnersまたはrace.resultsから取得）
+            let runnerNumbers = null;
+
+            // 優先度1: race.runnersフィールド（Chrome拡張で追加された正確な情報）
+            if (race.runners && Array.isArray(race.runners) && race.runners.length > 0) {
+                runnerNumbers = new Set(race.runners);
+            }
+            // 優先度2: race.resultsから推測（古いデータ用フォールバック）
+            else {
+                runnerNumbers = new Set(race.results.map(r => r.number));
+            }
+
+            // 取消馬を除外
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                race.canceledHorses.forEach(canceledNum => {
+                    runnerNumbers.delete(canceledNum);
+                });
+            }
+
+            // 実際に出走した馬番のみをカウント
+            runnerNumbers.forEach(num => {
                 if (num >= 1 && num <= 18) {
                     stats[num].appearances++;
                 }
@@ -1840,5 +2077,616 @@ class Statistics {
                 end: recentRaces[recentRaces.length - 1].date
             }
         };
+    }
+
+    // ========================================
+    // 馬番パターン統計（Horse Number Pattern Statistics）
+    // ========================================
+
+    // 単勝の馬番パターン統計（例: 1番、2番など）
+    calculateHorseNumberPatternTansho() {
+        const stats = {};
+
+        // 1番-18番を初期化
+        for (let i = 1; i <= 18; i++) {
+            stats[i] = {
+                total: 0,
+                wins: 0,
+                payouts: [],
+                winRate: 0,
+                averagePayout: 0,
+                expectedValue: 0
+            };
+        }
+
+        let totalWithPattern = 0;
+
+        this.filteredRaces.forEach(race => {
+            // 実際の出走馬番を取得
+            let runnerNumbers = null;
+
+            if (race.runners && Array.isArray(race.runners) && race.runners.length > 0) {
+                runnerNumbers = new Set(race.runners);
+            } else {
+                runnerNumbers = new Set(race.results.map(r => r.number));
+            }
+
+            // 取消馬を除外
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                race.canceledHorses.forEach(canceledNum => {
+                    runnerNumbers.delete(canceledNum);
+                });
+            }
+
+            // 実際に出走した馬番のみカウント
+            runnerNumbers.forEach(num => {
+                if (num >= 1 && num <= 18) {
+                    stats[num].total++;
+                }
+            });
+
+            // 的中判定（1着）
+            const winner = race.results.find(r => r.position === 1);
+            if (winner && winner.number >= 1 && winner.number <= 18) {
+                if (stats[winner.number] && stats[winner.number].total > 0) {
+                    stats[winner.number].wins++;
+                }
+            }
+
+            // 払い戻しデータから配当を集計
+            if (race.payouts && race.payouts.tansho) {
+                const num = race.payouts.tansho.horseNumber || race.payouts.tansho.number;
+                if (num >= 1 && num <= 18 && race.payouts.tansho.payout > 0) {
+                    stats[num].payouts.push(race.payouts.tansho.payout);
+                }
+            }
+        });
+
+        // 期待値等を計算
+        for (let key in stats) {
+            if (stats[key].total > 0) {
+                totalWithPattern++;
+                stats[key].winRate = (stats[key].wins / stats[key].total) * 100;
+                if (stats[key].payouts.length > 0) {
+                    const sum = stats[key].payouts.reduce((a, b) => a + b, 0);
+                    stats[key].averagePayout = Math.round(sum / stats[key].payouts.length);
+                    // 期待値(%) = (的中率 × 平均配当) / 100
+                    stats[key].expectedValue = (stats[key].winRate * stats[key].averagePayout) / 100;
+                }
+            }
+        }
+
+        return { stats, totalWithPattern };
+    }
+
+    // 複勝の馬番パターン統計（例: 1番、2番など）
+    calculateHorseNumberPatternFukusho() {
+        const stats = {};
+
+        // 1番-18番を初期化
+        for (let i = 1; i <= 18; i++) {
+            stats[i] = {
+                total: 0,
+                wins: 0,
+                payouts: [],
+                winRate: 0,
+                averagePayout: 0,
+                expectedValue: 0
+            };
+        }
+
+        let totalWithPattern = 0;
+
+        this.filteredRaces.forEach(race => {
+            // 実際の出走馬番を取得
+            let runnerNumbers = null;
+
+            if (race.runners && Array.isArray(race.runners) && race.runners.length > 0) {
+                runnerNumbers = new Set(race.runners);
+            } else {
+                runnerNumbers = new Set(race.results.map(r => r.number));
+            }
+
+            // 取消馬を除外
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                race.canceledHorses.forEach(canceledNum => {
+                    runnerNumbers.delete(canceledNum);
+                });
+            }
+
+            // 実際に出走した馬番のみカウント
+            runnerNumbers.forEach(num => {
+                if (num >= 1 && num <= 18) {
+                    stats[num].total++;
+                }
+            });
+
+            // 的中判定（1-3着）
+            const top3 = race.results.filter(r => r.position >= 1 && r.position <= 3);
+            top3.forEach(horse => {
+                const num = horse.number;
+                if (num >= 1 && num <= 18 && stats[num] && stats[num].total > 0) {
+                    stats[num].wins++;
+                }
+            });
+
+            // 払い戻しデータから配当を集計
+            if (race.payouts && race.payouts.fukusho && Array.isArray(race.payouts.fukusho)) {
+                race.payouts.fukusho.forEach(f => {
+                    const num = f.horseNumber || f.number;
+                    if (num >= 1 && num <= 18 && f.payout > 0) {
+                        stats[num].payouts.push(f.payout);
+                    }
+                });
+            }
+        });
+
+        // 期待値等を計算
+        for (let key in stats) {
+            if (stats[key].total > 0) {
+                totalWithPattern++;
+                stats[key].winRate = (stats[key].wins / stats[key].total) * 100;
+                if (stats[key].payouts.length > 0) {
+                    const sum = stats[key].payouts.reduce((a, b) => a + b, 0);
+                    stats[key].averagePayout = Math.round(sum / stats[key].payouts.length);
+                    // 期待値(%) = (的中率 × 平均配当) / 100
+                    stats[key].expectedValue = (stats[key].winRate * stats[key].averagePayout) / 100;
+                }
+            }
+        }
+
+        return { stats, totalWithPattern };
+    }
+
+    // 馬連の馬番パターン統計（例: 1-3番、2-5番など）
+    calculateHorseNumberPatternUmaren() {
+        const stats = {};
+
+        // 1番-18番の全組み合わせを初期化 (nC2 = 18*17/2 = 153通り)
+        for (let i = 1; i <= 18; i++) {
+            for (let j = i + 1; j <= 18; j++) {
+                const key = `${i}-${j}`;
+                stats[key] = {
+                    total: 0,
+                    wins: 0,
+                    payouts: [],
+                    winRate: 0,
+                    averagePayout: 0,
+                    expectedValue: 0
+                };
+            }
+        }
+
+        let totalWithPattern = 0;
+
+        this.filteredRaces.forEach(race => {
+            // 実際の出走馬番を取得
+            let runnerNumbers = null;
+
+            if (race.runners && Array.isArray(race.runners) && race.runners.length > 0) {
+                runnerNumbers = new Set(race.runners);
+            } else {
+                runnerNumbers = new Set(race.results.map(r => r.number));
+            }
+
+            // 取消馬を除外
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                race.canceledHorses.forEach(canceledNum => {
+                    runnerNumbers.delete(canceledNum);
+                });
+            }
+
+            // 実際に出走した馬番の組み合わせのみカウント
+            const runnerArray = Array.from(runnerNumbers).filter(n => n >= 1 && n <= 18).sort((a, b) => a - b);
+
+            for (let i = 0; i < runnerArray.length; i++) {
+                for (let j = i + 1; j < runnerArray.length; j++) {
+                    const num1 = runnerArray[i];
+                    const num2 = runnerArray[j];
+                    const key = `${num1}-${num2}`;
+                    if (stats[key]) {
+                        stats[key].total++;
+                    }
+                }
+            }
+
+            // 的中判定
+            if (race.payouts && race.payouts.umaren && Array.isArray(race.payouts.umaren)) {
+                race.payouts.umaren.forEach(umaren => {
+                    if (umaren.combination && Array.isArray(umaren.combination) && umaren.payout) {
+                        const nums = [...umaren.combination].sort((a, b) => a - b);
+                        if (nums.length === 2 && nums[0] >= 1 && nums[0] <= 18 && nums[1] >= 1 && nums[1] <= 18) {
+                            const key = `${nums[0]}-${nums[1]}`;
+                            if (stats[key] && stats[key].total > 0) {
+                                stats[key].wins++;
+                                stats[key].payouts.push(umaren.payout);
+                            }
+                        }
+                    }
+                });
+            }
+        });
+
+        // 期待値等を計算
+        for (let key in stats) {
+            if (stats[key].total > 0) {
+                totalWithPattern++;
+                stats[key].winRate = (stats[key].wins / stats[key].total) * 100;
+                if (stats[key].payouts.length > 0) {
+                    const sum = stats[key].payouts.reduce((a, b) => a + b, 0);
+                    stats[key].averagePayout = Math.round(sum / stats[key].payouts.length);
+                    // 期待値(%) = (的中率 × 平均配当) / 100
+                    stats[key].expectedValue = (stats[key].winRate * stats[key].averagePayout) / 100;
+                }
+            }
+        }
+
+        return { stats, totalWithPattern };
+    }
+
+    // 馬単の馬番パターン統計（例: 1→3、3→1など順序あり）
+    calculateHorseNumberPatternUmatan() {
+        const stats = {};
+
+        // 1番-18番の全順列を初期化 (nP2 = 18*17 = 306通り)
+        for (let i = 1; i <= 18; i++) {
+            for (let j = 1; j <= 18; j++) {
+                if (i !== j) {
+                    const key = `${i}-${j}`;
+                    stats[key] = {
+                        total: 0,
+                        wins: 0,
+                        payouts: [],
+                        winRate: 0,
+                        averagePayout: 0,
+                        expectedValue: 0
+                    };
+                }
+            }
+        }
+
+        let totalWithPattern = 0;
+
+        this.filteredRaces.forEach(race => {
+            // 実際の出走馬番を取得
+            let runnerNumbers = null;
+
+            if (race.runners && Array.isArray(race.runners) && race.runners.length > 0) {
+                runnerNumbers = new Set(race.runners);
+            } else {
+                runnerNumbers = new Set(race.results.map(r => r.number));
+            }
+
+            // 取消馬を除外
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                race.canceledHorses.forEach(canceledNum => {
+                    runnerNumbers.delete(canceledNum);
+                });
+            }
+
+            // 実際に出走した馬番の順列のみカウント
+            const runnerArray = Array.from(runnerNumbers).filter(n => n >= 1 && n <= 18);
+
+            for (let i = 0; i < runnerArray.length; i++) {
+                for (let j = 0; j < runnerArray.length; j++) {
+                    if (i !== j) {
+                        const num1 = runnerArray[i];
+                        const num2 = runnerArray[j];
+                        const key = `${num1}-${num2}`;
+                        if (stats[key]) {
+                            stats[key].total++;
+                        }
+                    }
+                }
+            }
+
+            // 的中判定
+            if (race.payouts && race.payouts.umatan && Array.isArray(race.payouts.umatan)) {
+                race.payouts.umatan.forEach(umatan => {
+                    if (umatan.combination && Array.isArray(umatan.combination) && umatan.payout) {
+                        const nums = umatan.combination;
+                        if (nums.length === 2 && nums[0] >= 1 && nums[0] <= 18 && nums[1] >= 1 && nums[1] <= 18 && nums[0] !== nums[1]) {
+                            const key = `${nums[0]}-${nums[1]}`;
+                            if (stats[key] && stats[key].total > 0) {
+                                stats[key].wins++;
+                                stats[key].payouts.push(umatan.payout);
+                            }
+                        }
+                    }
+                });
+            }
+        });
+
+        // 期待値等を計算
+        for (let key in stats) {
+            if (stats[key].total > 0) {
+                totalWithPattern++;
+                stats[key].winRate = (stats[key].wins / stats[key].total) * 100;
+                if (stats[key].payouts.length > 0) {
+                    const sum = stats[key].payouts.reduce((a, b) => a + b, 0);
+                    stats[key].averagePayout = Math.round(sum / stats[key].payouts.length);
+                    // 期待値(%) = (的中率 × 平均配当) / 100
+                    stats[key].expectedValue = (stats[key].winRate * stats[key].averagePayout) / 100;
+                }
+            }
+        }
+
+        return { stats, totalWithPattern };
+    }
+
+    // ワイドの馬番パターン統計（例: 1-3番、2-5番など）
+    calculateHorseNumberPatternWide() {
+        const stats = {};
+
+        // 1番-18番の全組み合わせを初期化 (nC2 = 18*17/2 = 153通り)
+        for (let i = 1; i <= 18; i++) {
+            for (let j = i + 1; j <= 18; j++) {
+                const key = `${i}-${j}`;
+                stats[key] = {
+                    total: 0,
+                    wins: 0,
+                    payouts: [],
+                    winRate: 0,
+                    averagePayout: 0,
+                    expectedValue: 0
+                };
+            }
+        }
+
+        let totalWithPattern = 0;
+
+        this.filteredRaces.forEach(race => {
+            // 実際の出走馬番を取得
+            let runnerNumbers = null;
+
+            if (race.runners && Array.isArray(race.runners) && race.runners.length > 0) {
+                runnerNumbers = new Set(race.runners);
+            } else {
+                runnerNumbers = new Set(race.results.map(r => r.number));
+            }
+
+            // 取消馬を除外
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                race.canceledHorses.forEach(canceledNum => {
+                    runnerNumbers.delete(canceledNum);
+                });
+            }
+
+            // 実際に出走した馬番の組み合わせのみカウント
+            const runnerArray = Array.from(runnerNumbers).filter(n => n >= 1 && n <= 18).sort((a, b) => a - b);
+
+            for (let i = 0; i < runnerArray.length; i++) {
+                for (let j = i + 1; j < runnerArray.length; j++) {
+                    const num1 = runnerArray[i];
+                    const num2 = runnerArray[j];
+                    const key = `${num1}-${num2}`;
+                    if (stats[key]) {
+                        stats[key].total++;
+                    }
+                }
+            }
+
+            // 的中判定（ワイドは複数的中あり）
+            if (race.payouts && race.payouts.wide && Array.isArray(race.payouts.wide)) {
+                race.payouts.wide.forEach(wide => {
+                    if (wide.combination && Array.isArray(wide.combination) && wide.payout) {
+                        const nums = [...wide.combination].sort((a, b) => a - b);
+                        if (nums.length === 2 && nums[0] >= 1 && nums[0] <= 18 && nums[1] >= 1 && nums[1] <= 18) {
+                            const key = `${nums[0]}-${nums[1]}`;
+                            if (stats[key] && stats[key].total > 0) {
+                                stats[key].wins++;
+                                stats[key].payouts.push(wide.payout);
+                            }
+                        }
+                    }
+                });
+            }
+        });
+
+        // 期待値等を計算
+        for (let key in stats) {
+            if (stats[key].total > 0) {
+                totalWithPattern++;
+                stats[key].winRate = (stats[key].wins / stats[key].total) * 100;
+                if (stats[key].payouts.length > 0) {
+                    const sum = stats[key].payouts.reduce((a, b) => a + b, 0);
+                    stats[key].averagePayout = Math.round(sum / stats[key].payouts.length);
+                    // 期待値(%) = (的中率 × 平均配当) / 100
+                    stats[key].expectedValue = (stats[key].winRate * stats[key].averagePayout) / 100;
+                }
+            }
+        }
+
+        return { stats, totalWithPattern };
+    }
+
+    // 3連複の馬番パターン統計（例: 1-3-5番など）
+    calculateHorseNumberPatternSanrenpuku() {
+        const stats = {};
+
+        // 1番-18番の全組み合わせを初期化 (nC3 = 18*17*16/6 = 816通り)
+        for (let i = 1; i <= 18; i++) {
+            for (let j = i + 1; j <= 18; j++) {
+                for (let k = j + 1; k <= 18; k++) {
+                    const key = `${i}-${j}-${k}`;
+                    stats[key] = {
+                        total: 0,
+                        wins: 0,
+                        payouts: [],
+                        winRate: 0,
+                        averagePayout: 0,
+                        expectedValue: 0
+                    };
+                }
+            }
+        }
+
+        let totalWithPattern = 0;
+
+        this.filteredRaces.forEach(race => {
+            // 実際の出走馬番を取得
+            let runnerNumbers = null;
+
+            if (race.runners && Array.isArray(race.runners) && race.runners.length > 0) {
+                runnerNumbers = new Set(race.runners);
+            } else {
+                runnerNumbers = new Set(race.results.map(r => r.number));
+            }
+
+            // 取消馬を除外
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                race.canceledHorses.forEach(canceledNum => {
+                    runnerNumbers.delete(canceledNum);
+                });
+            }
+
+            // 実際に出走した馬番の組み合わせのみカウント
+            const runnerArray = Array.from(runnerNumbers).filter(n => n >= 1 && n <= 18).sort((a, b) => a - b);
+
+            for (let i = 0; i < runnerArray.length; i++) {
+                for (let j = i + 1; j < runnerArray.length; j++) {
+                    for (let k = j + 1; k < runnerArray.length; k++) {
+                        const num1 = runnerArray[i];
+                        const num2 = runnerArray[j];
+                        const num3 = runnerArray[k];
+                        const key = `${num1}-${num2}-${num3}`;
+                        if (stats[key]) {
+                            stats[key].total++;
+                        }
+                    }
+                }
+            }
+
+            // 的中判定
+            if (race.payouts && race.payouts.sanrenpuku && Array.isArray(race.payouts.sanrenpuku)) {
+                race.payouts.sanrenpuku.forEach(sanrenpuku => {
+                    if (sanrenpuku.combination && Array.isArray(sanrenpuku.combination) && sanrenpuku.payout) {
+                        const nums = [...sanrenpuku.combination].sort((a, b) => a - b);
+                        if (nums.length === 3 && nums.every(n => n >= 1 && n <= 18)) {
+                            const key = `${nums[0]}-${nums[1]}-${nums[2]}`;
+                            if (stats[key] && stats[key].total > 0) {
+                                stats[key].wins++;
+                                stats[key].payouts.push(sanrenpuku.payout);
+                            }
+                        }
+                    }
+                });
+            }
+        });
+
+        // 期待値等を計算
+        for (let key in stats) {
+            if (stats[key].total > 0) {
+                totalWithPattern++;
+                stats[key].winRate = (stats[key].wins / stats[key].total) * 100;
+                if (stats[key].payouts.length > 0) {
+                    const sum = stats[key].payouts.reduce((a, b) => a + b, 0);
+                    stats[key].averagePayout = Math.round(sum / stats[key].payouts.length);
+                    // 期待値(%) = (的中率 × 平均配当) / 100
+                    stats[key].expectedValue = (stats[key].winRate * stats[key].averagePayout) / 100;
+                }
+            }
+        }
+
+        return { stats, totalWithPattern };
+    }
+
+    // 3連単の馬番パターン統計（例: 1→3→5など順序あり）
+    calculateHorseNumberPatternSanrentan() {
+        const stats = {};
+
+        // 1番-18番の全順列を初期化 (nP3 = 18*17*16 = 4896通り)
+        for (let i = 1; i <= 18; i++) {
+            for (let j = 1; j <= 18; j++) {
+                if (i !== j) {
+                    for (let k = 1; k <= 18; k++) {
+                        if (k !== i && k !== j) {
+                            const key = `${i}-${j}-${k}`;
+                            stats[key] = {
+                                total: 0,
+                                wins: 0,
+                                payouts: [],
+                                winRate: 0,
+                                averagePayout: 0,
+                                expectedValue: 0
+                            };
+                        }
+                    }
+                }
+            }
+        }
+
+        let totalWithPattern = 0;
+
+        this.filteredRaces.forEach(race => {
+            // 実際の出走馬番を取得
+            let runnerNumbers = null;
+
+            if (race.runners && Array.isArray(race.runners) && race.runners.length > 0) {
+                runnerNumbers = new Set(race.runners);
+            } else {
+                runnerNumbers = new Set(race.results.map(r => r.number));
+            }
+
+            // 取消馬を除外
+            if (race.canceledHorses && Array.isArray(race.canceledHorses)) {
+                race.canceledHorses.forEach(canceledNum => {
+                    runnerNumbers.delete(canceledNum);
+                });
+            }
+
+            // 実際に出走した馬番の順列のみカウント
+            const runnerArray = Array.from(runnerNumbers).filter(n => n >= 1 && n <= 18);
+
+            for (let i = 0; i < runnerArray.length; i++) {
+                for (let j = 0; j < runnerArray.length; j++) {
+                    if (i !== j) {
+                        for (let k = 0; k < runnerArray.length; k++) {
+                            if (k !== i && k !== j) {
+                                const num1 = runnerArray[i];
+                                const num2 = runnerArray[j];
+                                const num3 = runnerArray[k];
+                                const key = `${num1}-${num2}-${num3}`;
+                                if (stats[key]) {
+                                    stats[key].total++;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 的中判定
+            if (race.payouts && race.payouts.sanrentan && Array.isArray(race.payouts.sanrentan)) {
+                race.payouts.sanrentan.forEach(sanrentan => {
+                    if (sanrentan.combination && Array.isArray(sanrentan.combination) && sanrentan.payout) {
+                        const nums = sanrentan.combination;
+                        if (nums.length === 3 && nums.every(n => n >= 1 && n <= 18)) {
+                            const key = `${nums[0]}-${nums[1]}-${nums[2]}`;
+                            if (stats[key] && stats[key].total > 0) {
+                                stats[key].wins++;
+                                stats[key].payouts.push(sanrentan.payout);
+                            }
+                        }
+                    }
+                });
+            }
+        });
+
+        // 期待値等を計算
+        for (let key in stats) {
+            if (stats[key].total > 0) {
+                totalWithPattern++;
+                stats[key].winRate = (stats[key].wins / stats[key].total) * 100;
+                if (stats[key].payouts.length > 0) {
+                    const sum = stats[key].payouts.reduce((a, b) => a + b, 0);
+                    stats[key].averagePayout = Math.round(sum / stats[key].payouts.length);
+                    // 期待値(%) = (的中率 × 平均配当) / 100
+                    stats[key].expectedValue = (stats[key].winRate * stats[key].averagePayout) / 100;
+                }
+            }
+        }
+
+        return { stats, totalWithPattern };
     }
 }
