@@ -440,9 +440,21 @@ class AdvancedRaceAnalyzer {
             // 更新されたデータを保存
             this.dataManager.updateRacesByDate(racetrack, date, result.updatedRaces);
 
+            // 出走馬データと登録頭数の更新件数をカウント
+            const runnersCount = result.updatedRaces.filter(r => r.runners && r.runners.length > 0).length;
+            const horseCountUpdated = result.updatedRaces.filter(r => r.horseCount !== undefined && r.horseCount !== null).length;
+
             // 成功メッセージ
             let message = `✅ 払い戻しデータを更新しました\n\n`;
             message += `更新件数: ${result.updatedRaces.length}レース\n`;
+
+            if (runnersCount > 0) {
+                message += `🏇 出走馬データ: ${runnersCount}レース\n`;
+            }
+
+            if (horseCountUpdated > 0) {
+                message += `📊 登録頭数: ${horseCountUpdated}レース\n`;
+            }
 
             if (result.warnings.length > 0) {
                 message += `\n⚠️ 警告: ${result.warnings.length}件\n`;
@@ -791,14 +803,37 @@ class AdvancedRaceAnalyzer {
     createSavedDataItem(dataSet) {
         const totalRaces = dataSet.races.length;
         const racetrackCounts = {};
-        
+
+        // payoutsとrunnersの存在をチェック
+        let racesWithPayouts = 0;
+        let racesWithRunners = 0;
+
         dataSet.races.forEach(race => {
             racetrackCounts[race.racetrack] = (racetrackCounts[race.racetrack] || 0) + 1;
+
+            // payoutsの存在チェック
+            if (race.payouts && Object.keys(race.payouts).length > 0) {
+                racesWithPayouts++;
+            }
+
+            // runnersの存在チェック
+            if (race.runners && race.runners.length > 0) {
+                racesWithRunners++;
+            }
         });
 
         const racetrackInfo = Object.entries(racetrackCounts)
             .map(([track, count]) => `${track}(${count})`)
             .join(', ');
+
+        // payouts/runners情報の表示テキスト生成
+        let dataStatusInfo = '';
+        if (racesWithPayouts > 0) {
+            dataStatusInfo += `<span class="data-status-badge payouts">💰 払戻: ${racesWithPayouts}/${totalRaces}</span>`;
+        }
+        if (racesWithRunners > 0) {
+            dataStatusInfo += `<span class="data-status-badge runners">🏇 出走: ${racesWithRunners}/${totalRaces}</span>`;
+        }
 
         return `
             <div class="saved-data-item" data-id="${dataSet.id}">
@@ -819,6 +854,7 @@ class AdvancedRaceAnalyzer {
                 <div class="saved-data-info">
                     <span class="saved-data-races">${totalRaces}レース</span>
                     <span class="saved-data-tracks">${racetrackInfo}</span>
+                    ${dataStatusInfo}
                 </div>
             </div>
         `;

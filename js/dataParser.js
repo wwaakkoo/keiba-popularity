@@ -973,6 +973,25 @@ class DataParser {
 
             // 払い戻しデータを上書き
             updatedRace.payouts = tempRace.payouts;
+
+            // 出走馬データを上書き（存在する場合のみ）
+            if (tempRace.runners && tempRace.runners.length > 0) {
+                updatedRace.runners = tempRace.runners;
+                console.log(`  🏇 出走馬: ${tempRace.runners.join(',')} (${tempRace.runners.length}頭)`);
+            }
+
+            // 登録頭数を上書き（存在する場合のみ）
+            if (tempRace.horseCount !== undefined && tempRace.horseCount !== null) {
+                updatedRace.horseCount = tempRace.horseCount;
+                console.log(`  📊 登録頭数: ${tempRace.horseCount}頭`);
+            }
+
+            // 取消馬データを上書き（存在する場合のみ）
+            if (tempRace.canceledHorses && tempRace.canceledHorses.length > 0) {
+                updatedRace.canceledHorses = tempRace.canceledHorses;
+                console.log(`  🚫 取消馬: ${tempRace.canceledHorses.join(',')}`);
+            }
+
             console.log(`✅ ${updatedRace.number} ${updatedRace.name}: 払い戻しデータ更新`);
         });
 
